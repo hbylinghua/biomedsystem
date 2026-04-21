@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.AdminMapper">
+    <resultMap id="AdminResultMap" type="com.example.entity.Admin">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="password" property="password"/>
+        <result column="role" property="role"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <!-- 管理员登录：只查role='admin'的用户 -->
+    <select id="login" parameterType="com.example.entity.Admin" resultMap="AdminResultMap">
+        SELECT id, username, password, role, create_time
+        FROM sys_user
+        WHERE username = #{username} AND password = #{password} AND role = 'admin'
+    </select>
+
+    <!-- 管理员查询所有用户 -->
+    <select id="selectAll" resultMap="AdminResultMap">
+        SELECT id, username, password, role, create_time
+        FROM sys_user
+        ORDER BY id DESC
+    </select>
+
+    <!-- 新增用户（可指定角色） -->
+    <insert id="insert" parameterType="com.example.entity.Admin" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_user (username, password, role, create_time)
+        VALUES (#{username}, #{password}, #{role}, NOW())
+    </insert>
+
+    <!-- 修改用户 -->
+    <update id="updateById" parameterType="com.example.entity.Admin">
+        UPDATE sys_user
+        <set>
+            <if test="username != null">username = #{username},</if>
+            <if test="password != null">password = #{password},</if>
+            <if test="role != null">role = #{role},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById" parameterType="java.lang.Long">
+        DELETE FROM sys_user WHERE id = #{id}
+    </delete>
+</mapper>

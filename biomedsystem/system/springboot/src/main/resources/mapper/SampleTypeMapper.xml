@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.SampleTypeMapper">
+    <!-- 结果集映射：严格匹配数据库字段 -->
+    <resultMap id="SampleTypeResultMap" type="com.example.entity.SampleType">
+        <id column="id" property="id"/>
+        <result column="type_name" property="typeName"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <!-- 查询所有：只查真实存在的字段 -->
+    <select id="selectAll" parameterType="com.example.entity.SampleType" resultMap="SampleTypeResultMap">
+        SELECT id, type_name, create_time FROM sample_type
+        <where>
+            <if test="typeName != null and typeName != ''">
+                AND type_name LIKE CONCAT('%', #{typeName}, '%')
+            </if>
+        </where>
+        ORDER BY id DESC
+    </select>
+
+    <!-- 新增：自动填充 create_time -->
+    <insert id="insert" parameterType="com.example.entity.SampleType" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sample_type (type_name)
+        VALUES (#{typeName})
+    </insert>
+
+    <!-- 修改：只改 type_name -->
+    <update id="updateById" parameterType="com.example.entity.SampleType">
+        UPDATE sample_type
+        <set>
+            <if test="typeName != null">type_name = #{typeName},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除：不变 -->
+    <delete id="deleteById" parameterType="java.lang.Long">
+        DELETE FROM sample_type WHERE id = #{id}
+    </delete>
+
+    <!-- 根据ID查询：只查真实字段 -->
+    <select id="selectById" parameterType="java.lang.Long" resultMap="SampleTypeResultMap">
+        SELECT id, type_name, create_time FROM sample_type WHERE id = #{id}
+    </select>
+</mapper>

@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.DashboardMapper">
+
+    <sql id="baseWhere">
+        <where>
+            <if test="startDate != null and startDate != ''">
+                AND DATE(s.collect_time) &gt;= #{startDate}
+            </if>
+            <if test="endDate != null and endDate != ''">
+                AND DATE(s.collect_time) &lt;= #{endDate}
+            </if>
+            <if test="queueName != null and queueName != ''">
+                AND s.queue = #{queueName}
+            </if>
+            <if test="sampleTypeId != null">
+                AND s.sample_type_id = #{sampleTypeId}
+            </if>
+            <if test="role == 'researcher'">
+                AND s.create_by = #{userId}
+            </if>
+        </where>
+    </sql>
+
+    <select id="selectOverview" resultType="map">
+        SELECT
+        COUNT(*) AS totalCount,
+        SUM(CASE WHEN DATE(s.create_time) = CURDATE() THEN 1 ELSE 0 END) AS todayAddCount,
+        SUM(CASE WHEN s.storage_id IS NOT NULL THEN 1 ELSE 0 END) AS inStorageCount,
+        SUM(CASE WHEN s.status = 0 THEN 1 ELSE 0 END) AS pendingCount,
+        SUM(CASE WHEN s.status = 2 THEN 1 ELSE 0 END) AS abnormalCount,
+        ROUND(
+        (
+        SUM(CASE WHEN s.storage_id IS NOT NULL THEN 1 ELSE 0 END) /
+        NULLIF((SELECT COUNT(*) FROM biomed_storage), 0)
+        ) * 100, 2
+        ) AS storageUsageRate
+        FROM biomed_sample s
+        <include refid="baseWhere"/>
+    </select>
+
+    <select id="selectSampleTrend" resultType="map">
+        SELECT
+        DATE_FORMAT(s.collect_time, '%Y-%m-%d') AS xName,
+        COUNT(*) AS yValue
+        FROM biomed_sample s
+        <include refid="baseWhere"/>
+        GROUP BY DATE_FORMAT(s.collect_time, '%Y-%m-%d')
+        ORDER BY xName ASC
+    </select>
+
+    <select id="selectStatusDistribution" resultType="map">
+        SELECT
+        CASE s.status
+        WHEN 0 THEN '待处理'
+        WHEN 1 THEN '正常'
+        WHEN 2 THEN '异常'
+        ELSE '其他'
+        END AS xName,
+        COUNT(*) AS yValue
+        FROM biomed_sample s
+        <include refid="baseWhere"/>
+        GROUP BY s.status
+    </select>
+
+    <select id="selectSourceDistribution" resultType="map">
+        SELECT
+        IFNULL(s.source, '未知来源') AS xName,
+        COUNT(*) AS yValue
+        FROM biomed_sample s
+        <include refid="baseWhere"/>
+        GROUP BY s.source
+        ORDER BY yValue DESC
+    </select>
+
+    <select id="selectWarnings" resultType="map">
+        SELECT
+        s.id,
+        s.sample_no AS sampleNo,
+        s.sample_name AS sampleName,
+        s.queue,
+        s.source,
+        s.status,
+        s.collect_time AS collectTime,
+        CASE
+        WHEN s.status = 2 THEN '样本异常'
+        WHEN s.storage_id IS NULL THEN '未入库'
+        WHEN TIMESTAMPDIFF(DAY, s.collect_time, NOW()) &gt;= 30 THEN '存放超期'
+        ELSE '关注样本'
+        END AS warningText
+        FROM biomed_sample s
+        <include refid="baseWhere"/>
+        AND (
+        s.status = 2
+        OR s.storage_id IS NULL
+        OR TIMESTAMPDIFF(DAY, s.collect_time, NOW()) &gt;= 30
+        )
+        ORDER BY s.collect_time DESC
+        LIMIT 10
+    </select>
+
+</mapper>

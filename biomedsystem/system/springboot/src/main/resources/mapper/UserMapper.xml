@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.UserMapper">
+    <resultMap id="UserResultMap" type="com.example.entity.User">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="password" property="password"/>
+        <result column="role" property="role"/>
+        <result column="create_time" property="createTime"/>
+        <!-- 删掉新增的name/avatar/sex/phone/email映射 -->
+    </resultMap>
+
+    <!-- 通用登录：不限制角色 -->
+    <select id="login" parameterType="com.example.entity.User" resultMap="UserResultMap">
+        SELECT id, username, password, role, create_time
+        FROM sys_user
+        WHERE username = #{username} AND password = #{password}
+    </select>
+
+    <!-- 条件查询所有用户（仅保留原有字段） -->
+    <select id="selectAll" parameterType="com.example.entity.User" resultMap="UserResultMap">
+        SELECT id, username, password, role, create_time
+        FROM sys_user
+        <where>
+            <!-- 如果你原有表没有name字段，删掉名称模糊查询 -->
+            <!-- <if test="name != null and name != ''">
+                AND name LIKE CONCAT('%', #{name}, '%')
+            </if> -->
+            <!-- 保留ID查询（普通用户仅查自己） -->
+            <if test="id != null">
+                AND id = #{id}
+            </if>
+        </where>
+        ORDER BY id DESC
+    </select>
+
+    <!-- 通用新增：仅保留原有字段，角色由前端传入 -->
+    <insert id="insert" parameterType="com.example.entity.User" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_user (
+            username, password, role, create_time
+        ) VALUES (
+                     #{username}, #{password}, #{role}, NOW()
+                 )
+    </insert>
+
+    <!-- 通用更新：仅保留原有可修改字段 -->
+    <update id="updateById" parameterType="com.example.entity.User">
+        UPDATE sys_user
+        <set>
+            <if test="username != null">username = #{username},</if>
+            <if test="password != null">password = #{password},</if>
+            <if test="role != null">role = #{role},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 通用删除：不变 -->
+    <delete id="deleteById" parameterType="java.lang.Long">
+        DELETE FROM sys_user WHERE id = #{id}
+    </delete>
+
+    <!-- 根据ID查询：仅保留原有字段 -->
+    <select id="selectById" parameterType="java.lang.Long" resultMap="UserResultMap">
+        SELECT id, username, password, role, create_time
+        FROM sys_user
+        WHERE id = #{id}
+    </select>
+</mapper>

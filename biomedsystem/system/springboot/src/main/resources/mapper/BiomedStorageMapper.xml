@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.BiomedStorageMapper">
+    <resultMap id="BiomedStorageResultMap" type="com.example.entity.BiomedStorage">
+        <id column="id" property="id"/>
+        <result column="position" property="position"/>
+        <result column="temp" property="temp"/>
+        <result column="expire_time" property="expireTime"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <select id="selectAll" parameterType="com.example.entity.BiomedStorage" resultMap="BiomedStorageResultMap">
+        SELECT
+        s.*
+        FROM biomed_storage s
+        LEFT JOIN biomed_sample sm
+        ON JSON_EXTRACT(s.temp, '$.sampleId') = sm.id
+        <where>
+            <if test="position != null and position != ''">
+                AND s.position LIKE CONCAT('%', #{position}, '%')
+            </if>
+            <if test="status != null and status != ''">
+                AND s.status = #{status}
+            </if>
+            <!-- 搜索样本名称（真正的名称！）-->
+            <if test="sampleName != null and sampleName != ''">
+                AND sm.source LIKE CONCAT('%', #{sampleName}, '%')
+            </if>
+        </where>
+        ORDER BY s.id DESC
+    </select>
+
+    <insert id="insert" parameterType="com.example.entity.BiomedStorage" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO biomed_storage (position, temp, expire_time, status, create_time)
+        VALUES (#{position}, #{temp}, #{expireTime}, #{status}, NOW())
+    </insert>
+
+    <update id="updateById" parameterType="com.example.entity.BiomedStorage">
+        UPDATE biomed_storage
+        <set>
+            <if test="position != null">position = #{position},</if>
+            <if test="temp != null">temp = #{temp},</if>
+            <if test="expireTime != null">expire_time = #{expireTime},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById" parameterType="java.lang.Long">
+        DELETE FROM biomed_storage WHERE id = #{id}
+    </delete>
+
+    <select id="selectById" parameterType="java.lang.Long" resultMap="BiomedStorageResultMap">
+        SELECT * FROM biomed_storage WHERE id = #{id}
+    </select>
+
+    <select id="selectPage" resultMap="BiomedStorageResultMap">
+        select * from biomed_storage
+        <where>
+            <if test="sampleName != null and sampleName != ''">
+                temp LIKE CONCAT('%', #{sampleName}, '%')
+            </if>
+        </where>
+        order by id desc
+        limit #{start}, #{pageSize}
+    </select>
+
+    <!-- 统计总数 -->
+    <select id="selectTotal" resultType="long">
+        select count(*) from biomed_storage
+        <where>
+            <if test="sampleName != null and sampleName != ''">
+                temp LIKE CONCAT('%', #{sampleName}, '%')
+            </if>
+        </where>
+    </select>
+
+</mapper>
