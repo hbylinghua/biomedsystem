@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.RecommendationMapper">
+
+    <resultMap id="sampleResultMap" type="com.example.entity.BiomedSample">
+        <id property="id" column="id"/>
+        <result property="sampleNo" column="sample_no"/>
+        <result property="sampleTypeId" column="sample_type_id"/>
+        <result property="queue" column="queue"/>
+        <result property="source" column="source"/>
+        <result property="storageId" column="storage_id"/>
+        <result property="createBy" column="create_by"/>
+        <result property="status" column="status"/>
+        <result property="sampleName" column="sample_name"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="collectTime" column="collect_time"/>
+    </resultMap>
+
+    <resultMap id="storageResultMap" type="com.example.entity.BiomedStorage">
+        <id property="id" column="id"/>
+        <result property="position" column="position"/>
+        <result property="temp" column="temp"/>
+        <result property="expireTime" column="expire_time"/>
+        <result property="status" column="status"/>
+        <result property="sampleName" column="sample_name"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <select id="selectCandidateStorages" resultMap="storageResultMap">
+        SELECT
+            id,
+            position,
+            temp,
+            expire_time,
+            status,
+            sample_name,
+            create_time
+        FROM biomed_storage
+        WHERE status IS NULL
+           OR status NOT IN ('销毁', '过期')
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectPreferredTempBySampleType" resultType="java.lang.String">
+        SELECT bs.temp
+        FROM biomed_sample s
+        LEFT JOIN biomed_storage bs ON s.storage_id = bs.id
+        WHERE s.sample_type_id = #{sampleTypeId}
+        AND bs.temp IS NOT NULL
+        <if test="role == 'researcher'">
+            AND s.create_by = #{userId}
+        </if>
+        GROUP BY bs.temp
+        ORDER BY COUNT(*) DESC
+        LIMIT 1
+    </select>
+
+    <select id="countHistoryMatch" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM biomed_sample s
+        WHERE s.storage_id = #{storageId}
+        <if test="sampleTypeId != null">
+            AND s.sample_type_id = #{sampleTypeId}
+        </if>
+        <if test="queueName != null and queueName != ''">
+            AND s.queue = #{queueName}
+        </if>
+        <if test="source != null and source != ''">
+            AND s.source = #{source}
+        </if>
+        <if test="role == 'researcher'">
+            AND s.create_by = #{userId}
+        </if>
+    </select>
+
+    <select id="selectPendingSamples" resultMap="sampleResultMap">
+        SELECT
+        id,
+        sample_no,
+        sample_type_id,
+        queue,
+        source,
+        storage_id,
+        create_by,
+        status,
+        sample_name,
+        create_time,
+        update_time,
+        collect_time
+        FROM biomed_sample
+        WHERE 1 = 1
+        <if test="role == 'researcher'">
+            AND create_by = #{userId}
+        </if>
+        ORDER BY collect_time DESC, create_time DESC
+    </select>
+
+</mapper>

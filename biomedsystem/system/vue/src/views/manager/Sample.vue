@@ -188,6 +188,9 @@ import { Plus } from "@element-plus/icons-vue";
 import dayjs from "dayjs";
 import { useRouter } from 'vue-router'
 import { getToken } from '@/utils/auth'
+import { ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import StorageRecommendDialog from './StorageRecommendDialog.vue'
 
 // 文件上传地址
 const uploadUrl = import.meta.env.VITE_BASE_URL + '/files/upload';
@@ -438,6 +441,24 @@ const handleSelectionChange = (val) => {
   selectedIds.value = val.map(item => item.id)
 }
 
+
+const recommendDialogVisible = ref(false)
+
+const openRecommendDialog = () => {
+  if (!form.sampleTypeId) {
+    ElMessage.warning('请先选择样本类型')
+    return
+  }
+  recommendDialogVisible.value = true
+}
+
+const handleChooseRecommendation = (row) => {
+  form.storageId = row.storageId
+  ElMessage.success(`已自动回填推荐位置：${row.position}`)
+}
+
+
+
 // 重置查询条件
 const reset = () => {
   data.name = null;
@@ -481,5 +502,11 @@ init();
 
 .el-table .el-table__cell {
   padding: 10px 0;
+}
+
+.storage-select-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 </style>
