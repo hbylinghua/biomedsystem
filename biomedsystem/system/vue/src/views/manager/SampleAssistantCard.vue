@@ -47,8 +47,8 @@
         >
           <el-table-column prop="sampleNo" label="样本编号" min-width="120" />
           <el-table-column prop="sampleName" label="样本名称" min-width="140" />
-          <el-table-column prop="source" label="来源" min-width="120" />
-          <el-table-column prop="queue" label="队列" min-width="120" />
+          <el-table-column prop="source" label="样本来源" min-width="120" />
+          <el-table-column prop="queue" label="样本队列" min-width="120" />
           <el-table-column prop="statusText" label="状态" width="100" />
         </el-table>
       </template>
@@ -91,6 +91,7 @@ const askQuestion = async () => {
     answer.value = res.data?.answer || ''
     relatedSamples.value = (res.data?.relatedSamples || []).map(item => ({
       ...item,
+      sampleName: item.sampleName || `样本-${item.sampleNo || item.id}`,
       statusText: item.status === 0 ? '待处理' : item.status === 1 ? '正常' : '异常'
     }))
   } catch (e) {
@@ -104,35 +105,10 @@ const askQuestion = async () => {
 </script>
 
 <style scoped>
-.assistant-card {
-  width: 100%;
-}
-
-.assistant-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.question-tags {
-  margin-top: 8px;
-}
-
-.answer-box {
-  margin-top: 16px;
-  background: #f7f8fa;
-  padding: 12px;
-  border-radius: 8px;
-}
-
-.answer-title {
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-
-.answer-content {
-  color: #333;
-  line-height: 1.7;
-  white-space: pre-wrap;
-}
+.assistant-card { width: 100%; }
+.assistant-header { display: flex; justify-content: space-between; align-items: center; }
+.question-tags { margin-top: 8px; }
+.answer-box { margin-top: 16px; background: #f7f8fa; padding: 12px; border-radius: 8px; }
+.answer-title { font-weight: 600; margin-bottom: 8px; }
+.answer-content { color: #333; line-height: 1.7; white-space: pre-wrap; }
 </style>

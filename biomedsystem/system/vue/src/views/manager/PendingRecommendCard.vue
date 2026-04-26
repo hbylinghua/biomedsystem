@@ -46,19 +46,10 @@ const loadData = async () => {
   }
 }
 
-onMounted(() => {
-  loadData()
-})
+onMounted(loadData)
 </script>
 
 <style scoped>
-.pending-recommend-card {
-  width: 100%;
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
+.pending-recommend-card { width: 100%; }
+.card-header { display: flex; align-items: center; justify-content: space-between; }
 </style>

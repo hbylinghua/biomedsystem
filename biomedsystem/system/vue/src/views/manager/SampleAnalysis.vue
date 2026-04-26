@@ -78,14 +78,19 @@
         <template #header>筛选后的明细数据</template>
         <el-table :data="filteredSamples" border height="420">
           <el-table-column prop="sampleNo" label="样本编号" min-width="120" />
-          <el-table-column prop="sampleName" label="样本名称" min-width="140" />
-          <el-table-column prop="source" label="来源" min-width="120" />
+          <el-table-column prop="sampleName" label="样本名称" min-width="140">
+            <template #default="scope">{{ scope.row.sampleName || `样本-${scope.row.sampleNo || scope.row.id}` }}</template>
+          </el-table-column>
+          <el-table-column prop="source" label="来源/志愿者" min-width="120" />
           <el-table-column label="样本类型" min-width="120">
             <template #default="scope">{{ getTypeName(scope.row.sampleTypeId) }}</template>
           </el-table-column>
           <el-table-column prop="queue" label="队列" min-width="120" />
           <el-table-column label="状态" width="100">
             <template #default="scope">{{ getStatusText(scope.row.status) }}</template>
+          </el-table-column>
+          <el-table-column label="存储位置" min-width="160">
+            <template #default="scope">{{ getStoragePosition(scope.row.storageId) }}</template>
           </el-table-column>
           <el-table-column prop="collectTime" label="采集时间" min-width="160">
             <template #default="scope">{{ formatTime(scope.row.collectTime) }}</template>
@@ -120,55 +125,34 @@ const activeTab = ref('queueRatio')
 const reportVisible = ref(false)
 const analysisReport = ref('')
 
-const filterForm = reactive({
-  timeRange: [],
-  queueName: null,
-  sampleTypeId: null
-})
-
+const filterForm = reactive({ timeRange: [], queueName: null, sampleTypeId: null })
 const queueList = ref([])
 const sampleTypeList = ref([])
+const storageList = ref([])
 const allSamples = ref([])
 const chartData = ref({ xAxis: [], series: [] })
 
-const metrics = reactive({
-  total: 0,
-  pending: 0,
-  normal: 0,
-  abnormal: 0
-})
-
+const metrics = reactive({ total: 0, pending: 0, normal: 0, abnormal: 0 })
 const insights = reactive({
   line1: '当前暂无分析结论',
   line2: '请调整筛选条件后重新分析',
   line3: '点击图表可进一步钻取明细'
 })
 
-const formatTime = (time) => {
-  return time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-'
-}
-
-const getTypeName = (sampleTypeId) => {
-  const found = sampleTypeList.value.find(item => item.id === sampleTypeId)
-  return found ? found.typeName : '未分类'
-}
-
-const getStatusText = (status) => {
-  if (status === 0) return '待处理'
-  if (status === 1) return '正常'
-  if (status === 2) return '异常'
-  return '其他'
+const formatTime = (time) => time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-'
+const getTypeName = (sampleTypeId) => (sampleTypeList.value.find(item => item.id === sampleTypeId)?.typeName || '未分类')
+const getStatusText = (status) => status === 0 ? '待处理' : status === 1 ? '正常' : status === 2 ? '异常' : '其他'
+const getStoragePosition = (storageId) => {
+  if (!storageId) return '未入库'
+  const item = storageList.value.find(s => s.id === storageId)
+  return item ? item.position : `存储记录#${storageId}`
 }
 
 const filteredSamples = computed(() => {
   let list = [...allSamples.value]
-  if (filterForm.queueName) {
-    list = list.filter(item => item.queue === filterForm.queueName)
-  }
-  if (filterForm.sampleTypeId) {
-    list = list.filter(item => item.sampleTypeId === filterForm.sampleTypeId)
-  }
-  if (filterForm.timeRange && filterForm.timeRange.length === 2) {
+  if (filterForm.queueName) list = list.filter(item => item.queue === filterForm.queueName)
+  if (filterForm.sampleTypeId) list = list.filter(item => item.sampleTypeId === filterForm.sampleTypeId)
+  if (filterForm.timeRange?.length === 2) {
     const start = dayjs(filterForm.timeRange[0]).startOf('day')
     const end = dayjs(filterForm.timeRange[1]).endOf('day')
     list = list.filter(item => {
@@ -186,12 +170,10 @@ const buildInsights = () => {
   metrics.pending = list.filter(item => item.status === 0).length
   metrics.normal = list.filter(item => item.status === 1).length
   metrics.abnormal = list.filter(item => item.status === 2).length
-
   const topQueue = countTop(list.map(item => item.queue).filter(Boolean))
   const topSource = countTop(list.map(item => item.source).filter(Boolean))
   const topTypeId = countTop(list.map(item => item.sampleTypeId).filter(Boolean))
   const topTypeName = topTypeId ? getTypeName(Number(topTypeId)) : '暂无'
-
   insights.line1 = `当前筛选结果共 ${metrics.total} 条样本，其中待处理 ${metrics.pending} 条、正常 ${metrics.normal} 条、异常 ${metrics.abnormal} 条。`
   insights.line2 = `主要样本队列：${topQueue || '暂无'}；主要来源：${topSource || '暂无'}。`
   insights.line3 = `当前数量最多的样本类型：${topTypeName}。`
@@ -212,17 +194,17 @@ const initECharts = async () => {
   window.addEventListener('resize', resizeChart)
 }
 
-const resizeChart = () => {
-  myChart?.resize()
-}
+const resizeChart = () => myChart?.resize()
 
 const loadDictData = async () => {
-  const [typeRes, sampleRes] = await Promise.all([
+  const [typeRes, sampleRes, storageRes] = await Promise.all([
     request.get('/sampleType/selectAll'),
-    request.get('/biomedSample/selectAll')
+    request.get('/biomedSample/selectAll'),
+    request.get('/biomedStorage/selectAll')
   ])
   sampleTypeList.value = typeRes.data || []
   allSamples.value = sampleRes.data || []
+  storageList.value = storageRes.data || []
   queueList.value = [...new Set(allSamples.value.map(s => s.queue).filter(Boolean))]
 }
 
@@ -240,13 +222,11 @@ const buildParams = () => {
 const queryAnalysisData = async () => {
   if (!myChart) return
   myChart.showLoading()
-
   const apiMap = {
     queueRatio: '/api/sample/analysis/queueRatio',
     timeDist: '/api/sample/analysis/collectTimeDist',
     typeDiff: '/api/sample/analysis/sampleTypeCount'
   }
-
   try {
     const res = await request.get(apiMap[activeTab.value], { params: buildParams() })
     chartData.value = res.data || { xAxis: [], series: [] }
@@ -262,17 +242,11 @@ const queryAnalysisData = async () => {
 const renderChart = () => {
   const { xAxis = [], series = [] } = chartData.value
   let option = {}
-
   if (activeTab.value === 'queueRatio') {
     option = {
       title: { text: '队列样本占比分析', left: 'center' },
       tooltip: { trigger: 'item' },
-      series: [{
-        type: 'pie',
-        radius: ['40%', '70%'],
-        data: xAxis.map((name, i) => ({ name, value: series[i] || 0 })),
-        label: { formatter: '{b}: {c} ({d}%)' }
-      }]
+      series: [{ type: 'pie', radius: ['40%', '70%'], data: xAxis.map((name, i) => ({ name, value: series[i] || 0 })), label: { formatter: '{b}: {c} ({d}%)' } }]
     }
   } else if (activeTab.value === 'timeDist') {
     option = {
@@ -280,10 +254,7 @@ const renderChart = () => {
       tooltip: { trigger: 'axis' },
       xAxis: { type: 'category', data: xAxis },
       yAxis: { type: 'value' },
-      series: [
-        { type: 'bar', data: series },
-        { type: 'line', data: series, smooth: true }
-      ]
+      series: [{ type: 'bar', data: series }, { type: 'line', data: series, smooth: true }]
     }
   } else {
     option = {
@@ -294,7 +265,6 @@ const renderChart = () => {
       series: [{ type: 'bar', data: series }]
     }
   }
-
   myChart.setOption(option, true)
 }
 
@@ -311,17 +281,13 @@ const handleChartClick = (params) => {
   queryAnalysisData()
 }
 
-const switchChart = () => {
-  queryAnalysisData()
-}
-
+const switchChart = () => queryAnalysisData()
 const resetFilter = async () => {
   filterForm.timeRange = []
   filterForm.queueName = null
   filterForm.sampleTypeId = null
   await queryAnalysisData()
 }
-
 const downloadChart = () => {
   const a = document.createElement('a')
   a.href = myChart.getDataURL({ type: 'png', backgroundColor: '#fff' })
@@ -329,142 +295,36 @@ const downloadChart = () => {
   a.click()
   ElMessage.success('下载成功')
 }
-
 const generateReport = () => {
   const queueText = filterForm.queueName || '全部队列'
   const typeText = filterForm.sampleTypeId ? getTypeName(filterForm.sampleTypeId) : '全部类型'
   const timeText = filterForm.timeRange.length === 2 ? `${filterForm.timeRange[0]} 至 ${filterForm.timeRange[1]}` : '全部时间'
-
   analysisReport.value = [
-    '【样本详细分析报告】',
-    '',
-    `筛选条件：`,
-    `- 时间范围：${timeText}`,
-    `- 队列：${queueText}`,
-    `- 样本类型：${typeText}`,
-    '',
-    `统计结果：`,
-    `- 样本总量：${metrics.total}`,
-    `- 待处理：${metrics.pending}`,
-    `- 正常：${metrics.normal}`,
-    `- 异常：${metrics.abnormal}`,
-    '',
-    `分析结论：`,
-    `1. ${insights.line1}`,
-    `2. ${insights.line2}`,
-    `3. ${insights.line3}`,
-    '',
-    '说明：图表支持点击钻取，点击后可直接联动下方明细数据表。'
+    '【样本详细分析报告】', '', '筛选条件：', `- 时间范围：${timeText}`, `- 队列：${queueText}`, `- 样本类型：${typeText}`, '',
+    '统计结果：', `- 样本总量：${metrics.total}`, `- 待处理：${metrics.pending}`, `- 正常：${metrics.normal}`, `- 异常：${metrics.abnormal}`, '',
+    '分析结论：', `1. ${insights.line1}`, `2. ${insights.line2}`, `3. ${insights.line3}`, '', '说明：图表支持点击钻取，点击后可直接联动下方明细数据表。'
   ].join('\n')
-
   reportVisible.value = true
 }
+const copyReport = async () => { await navigator.clipboard.writeText(analysisReport.value); ElMessage.success('复制成功') }
 
-const copyReport = async () => {
-  await navigator.clipboard.writeText(analysisReport.value)
-  ElMessage.success('复制成功')
-}
-
-onMounted(async () => {
-  await loadDictData()
-  await initECharts()
-  await queryAnalysisData()
-})
-
-onUnmounted(() => {
-  if (myChart) {
-    myChart.off('click', handleChartClick)
-    myChart.dispose()
-  }
-  window.removeEventListener('resize', resizeChart)
-  myChart = null
-})
+onMounted(async () => { await loadDictData(); await initECharts(); await queryAnalysisData() })
+onUnmounted(() => { if (myChart) { myChart.off('click', handleChartClick); myChart.dispose() } window.removeEventListener('resize', resizeChart) })
 </script>
 
 <style scoped>
-.analysis-page {
-  padding: 15px;
-  background-color: #f5f7fa;
-  min-height: calc(100vh - 20px);
-}
-
-.page-title {
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 15px;
-  color: #1989fa;
-}
-
-.top-grid {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.metric-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-
-.metric-title {
-  color: #909399;
-  font-size: 14px;
-}
-
-.metric-value {
-  margin-top: 8px;
-  font-size: 28px;
-  font-weight: bold;
-}
-
-.metric-value.warn { color: #e6a23c; }
-.metric-value.success { color: #67c23a; }
-.metric-value.danger { color: #f56c6c; }
-
-.chart-card {
-  margin-bottom: 16px;
-}
-
-.chart-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.echarts-container {
-  width: 100%;
-  height: 420px;
-  margin-top: 20px;
-}
-
-.insight-box {
-  margin-top: 16px;
-  background: #f7f8fa;
-  border-radius: 8px;
-  padding: 12px 16px;
-}
-
-.insight-title {
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-
-.content-grid {
-  display: grid;
-  grid-template-columns: 1.4fr 1fr;
-  gap: 16px;
-}
-
-@media (max-width: 1200px) {
-  .top-grid,
-  .content-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .metric-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
+.analysis-page { padding: 15px; background-color: #f5f7fa; min-height: calc(100vh - 20px); }
+.page-title { font-size: 18px; font-weight: 600; margin-bottom: 15px; color: #1989fa; }
+.top-grid { display: grid; grid-template-columns: 320px 1fr; gap: 16px; margin-bottom: 16px; }
+.metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.metric-title { color: #909399; font-size: 14px; }
+.metric-value { margin-top: 8px; font-size: 28px; font-weight: bold; }
+.metric-value.warn { color: #e6a23c; } .metric-value.success { color: #67c23a; } .metric-value.danger { color: #f56c6c; }
+.chart-card { margin-bottom: 16px; }
+.chart-header { display: flex; justify-content: space-between; align-items: center; }
+.echarts-container { width: 100%; height: 420px; margin-top: 20px; }
+.insight-box { margin-top: 16px; background: #f7f8fa; border-radius: 8px; padding: 12px 16px; }
+.insight-title { font-weight: 600; margin-bottom: 8px; }
+.content-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+@media (max-width: 1200px) { .top-grid, .content-grid { grid-template-columns: 1fr; } .metric-grid { grid-template-columns: repeat(2, 1fr); } }
 </style>

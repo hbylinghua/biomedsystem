@@ -17,63 +17,29 @@
         <result column="status" property="status"/>
     </resultMap>
 
-    <select id="selectAll" resultMap="BiomedSampleResultMap">
-        select * from biomed_sample
+    <select id="selectAll" parameterType="com.example.entity.BiomedSample" resultMap="BiomedSampleResultMap">
+        SELECT * FROM biomed_sample
         <where>
-            <if test="id != null"> and id = #{id}</if>
-            <if test="sampleNo != null and sampleNo != ''">
-                and sample_no like concat('%', #{sampleNo}, '%')
-            </if>
-            <if test="sampleTypeId != null">
-                and sample_type_id = #{sampleTypeId}
-            </if>
-            <if test="queue != null and queue != ''">
-                and queue like concat('%', #{queue}, '%')
-            </if>
-            <if test="source != null and source != ''">
-                and source like concat('%', #{source}, '%')
-            </if>
-            <if test="sampleName != null and sampleName != ''">
-                and sample_name like concat('%', #{sampleName}, '%')
-            </if>
-            <if test="storageId != null">
-                and storage_id = #{storageId}
-            </if>
-            <if test="status != null">
-                and status = #{status}
-            </if>
-            <if test="createBy != null">
-                and create_by = #{createBy}
-            </if>
+            <if test="id != null"> AND id = #{id}</if>
+            <if test="sampleNo != null and sampleNo != ''"> AND sample_no LIKE CONCAT('%', #{sampleNo}, '%')</if>
+            <if test="sampleTypeId != null"> AND sample_type_id = #{sampleTypeId}</if>
+            <if test="queue != null and queue != ''"> AND queue LIKE CONCAT('%', #{queue}, '%')</if>
+            <if test="source != null and source != ''"> AND source LIKE CONCAT('%', #{source}, '%')</if>
+            <if test="sampleName != null and sampleName != ''"> AND sample_name LIKE CONCAT('%', #{sampleName}, '%')</if>
+            <if test="storageId != null"> AND storage_id = #{storageId}</if>
+            <if test="status != null"> AND status = #{status}</if>
+            <if test="createBy != null"> AND create_by = #{createBy}</if>
         </where>
-        order by id desc
+        ORDER BY id DESC
     </select>
 
     <insert id="insert">
         INSERT INTO biomed_sample (
-            sample_no,
-            sample_type_id,
-            queue,
-            collect_time,
-            source,
-            storage_id,
-            create_by,
-            create_time,
-            update_time,
-            sample_name,
-            status
+            sample_no, sample_type_id, queue, collect_time, source, storage_id,
+            create_by, create_time, update_time, sample_name, status
         ) VALUES (
-                     #{sampleNo},
-                     #{sampleTypeId},
-                     #{queue},
-                     #{collectTime},
-                     #{source},
-                     #{storageId},
-                     #{createBy},
-                     NOW(),
-                     NOW(),
-                     #{sampleName},
-                     #{status}
+                     #{sampleNo}, #{sampleTypeId}, #{queue}, #{collectTime}, #{source}, #{storageId},
+                     #{createBy}, NOW(), NOW(), #{sampleName}, #{status}
                  )
     </insert>
 
@@ -86,7 +52,6 @@
             <if test="collectTime != null">collect_time = #{collectTime},</if>
             <if test="source != null">source = #{source},</if>
             <if test="storageId != null">storage_id = #{storageId},</if>
-            <if test="createBy != null">create_by = #{createBy},</if>
             <if test="sampleName != null">sample_name = #{sampleName},</if>
             <if test="status != null">status = #{status},</if>
             update_time = NOW()
@@ -103,106 +68,70 @@
     </select>
 
     <select id="selectQueueRatio" resultType="java.util.Map">
-        SELECT
-        queue AS queue,
-        COUNT(id) AS count
+        SELECT queue AS queue, COUNT(id) AS count
         FROM biomed_sample
         <where>
             queue IS NOT NULL AND queue != ''
-            <if test="createBy != null">
-                AND create_by = #{createBy}
-            </if>
-            <if test="queueName != null and queueName != ''">
-                AND queue = #{queueName}
-            </if>
-            <if test="sampleTypeId != null">
-                AND sample_type_id = #{sampleTypeId}
-            </if>
-            <if test="startDate != null and startDate != ''">
-                AND collect_time >= #{startDate}
-            </if>
-            <if test="endDate != null and endDate != ''">
-                AND collect_time &lt;= #{endDate}
-            </if>
+            <if test="createBy != null"> AND create_by = #{createBy}</if>
+            <if test="queueName != null and queueName != ''"> AND queue = #{queueName}</if>
+            <if test="sampleTypeId != null"> AND sample_type_id = #{sampleTypeId}</if>
+            <if test="startDate != null and startDate != ''"> AND collect_time >= #{startDate}</if>
+            <if test="endDate != null and endDate != ''"> AND collect_time &lt;= #{endDate}</if>
         </where>
         GROUP BY queue
         ORDER BY count DESC
     </select>
 
     <select id="selectCollectTimeDist" resultType="java.util.Map">
-        SELECT
-        DATE(collect_time) AS collectDate,
-        COUNT(id) AS count
+        SELECT DATE(collect_time) AS collectDate, COUNT(id) AS count
         FROM biomed_sample
         <where>
             collect_time IS NOT NULL
-            <if test="createBy != null">
-                AND create_by = #{createBy}
-            </if>
-            <if test="queueName != null and queueName != ''">
-                AND queue = #{queueName}
-            </if>
-            <if test="sampleTypeId != null">
-                AND sample_type_id = #{sampleTypeId}
-            </if>
-            <if test="start != null">
-                AND collect_time >= #{start}
-            </if>
-            <if test="end != null">
-                AND collect_time &lt;= #{end}
-            </if>
+            <if test="createBy != null"> AND create_by = #{createBy}</if>
+            <if test="queueName != null and queueName != ''"> AND queue = #{queueName}</if>
+            <if test="sampleTypeId != null"> AND sample_type_id = #{sampleTypeId}</if>
+            <if test="start != null"> AND collect_time >= #{start}</if>
+            <if test="end != null"> AND collect_time &lt;= #{end}</if>
         </where>
         GROUP BY DATE(collect_time)
         ORDER BY collectDate ASC
     </select>
 
     <select id="selectSampleTypeCount" resultType="java.util.Map">
-        SELECT
-        st.id AS typeId,
-        st.type_name AS typeName,
-        COUNT(bs.id) AS count
+        SELECT st.id AS typeId, st.type_name AS typeName, COUNT(bs.id) AS count
         FROM sample_type st
-        LEFT JOIN biomed_sample bs
-        ON st.id = bs.sample_type_id
-        <if test="createBy != null">
-            AND bs.create_by = #{createBy}
-        </if>
-        <if test="queueName != null and queueName != ''">
-            AND bs.queue = #{queueName}
-        </if>
-        <if test="sampleTypeId != null">
-            AND bs.sample_type_id = #{sampleTypeId}
-        </if>
-        <if test="startDate != null and startDate != ''">
-            AND bs.collect_time >= #{startDate}
-        </if>
-        <if test="endDate != null and endDate != ''">
-            AND bs.collect_time &lt;= #{endDate}
-        </if>
+        LEFT JOIN biomed_sample bs ON st.id = bs.sample_type_id
+        <if test="createBy != null"> AND bs.create_by = #{createBy}</if>
+        <if test="queueName != null and queueName != ''"> AND bs.queue = #{queueName}</if>
+        <if test="sampleTypeId != null"> AND bs.sample_type_id = #{sampleTypeId}</if>
+        <if test="startDate != null and startDate != ''"> AND bs.collect_time >= #{startDate}</if>
+        <if test="endDate != null and endDate != ''"> AND bs.collect_time &lt;= #{endDate}</if>
         GROUP BY st.id, st.type_name
         ORDER BY count DESC
     </select>
 
+    <select id="selectPage" parameterType="com.example.entity.BiomedSample" resultMap="BiomedSampleResultMap">
+        SELECT * FROM biomed_sample
+        <where>
+            <if test="sampleName != null and sampleName != ''"> AND sample_name LIKE CONCAT('%', #{sampleName}, '%')</if>
+            <if test="sampleNo != null and sampleNo != ''"> AND sample_no LIKE CONCAT('%', #{sampleNo}, '%')</if>
+            <if test="sampleTypeId != null"> AND sample_type_id = #{sampleTypeId}</if>
+            <if test="queue != null and queue != ''"> AND queue LIKE CONCAT('%', #{queue}, '%')</if>
+            <if test="createBy != null"> AND create_by = #{createBy}</if>
+        </where>
+        ORDER BY id DESC
+    </select>
+
     <insert id="insertBatch">
         INSERT INTO biomed_sample (
-        sample_no, sample_type_id, queue, collect_time,
-        source, storage_id, create_by, create_time, update_time, sample_name, status
+        sample_no, sample_type_id, queue, collect_time, source, storage_id,
+        create_by, create_time, update_time, sample_name, status
         ) VALUES
         <foreach collection="list" item="item" separator=",">
             (
-            #{item.sampleNo},
-            #{item.sampleTypeId},
-            #{item.queue},
-            #{item.collectTime},
-            #{item.source},
-            #{item.storageId},
-            #{item.createBy},
-            NOW(),
-            NOW(),
-            #{item.sampleName},
-            IFNULL(#{item.status}, 0)
+            #{item.sampleNo}, #{item.sampleTypeId}, #{item.queue}, #{item.collectTime}, #{item.source}, #{item.storageId},
+            #{item.createBy}, NOW(), NOW(), #{item.sampleName}, IFNULL(#{item.status}, 0)
             )
         </foreach>
     </insert>
-
 </mapper>

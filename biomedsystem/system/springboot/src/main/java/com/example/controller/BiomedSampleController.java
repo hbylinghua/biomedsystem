@@ -4,7 +4,9 @@ import com.example.common.ExcelUtil;
 import com.example.common.Result;
 import com.example.common.context.UserContext;
 import com.example.common.model.LoginUser;
+import com.example.entity.BiomedOperLog;
 import com.example.entity.BiomedSample;
+import com.example.service.BiomedOperLogService;
 import com.example.service.BiomedSampleService;
 import com.github.pagehelper.PageInfo;
 import jakarta.annotation.Resource;
@@ -26,99 +28,67 @@ public class BiomedSampleController {
 
     @Resource
     private BiomedSampleService biomedSampleService;
+    @Resource
+    private BiomedOperLogService biomedOperLogService;
 
     @PostMapping("/add")
     public Result add(@RequestBody BiomedSample biomedSample) {
         LoginUser currentUser = UserContext.get();
-        if (currentUser == null) {
-            return Result.error("未登录");
-        }
-
+        if (currentUser == null) return Result.error("未登录");
         biomedSample.setCreateBy(currentUser.getUserId());
         biomedSampleService.add(biomedSample);
+        writeLog(biomedSample.getId(), currentUser.getUserId(), "录入", "录入样本" + biomedSample.getSampleNo());
         return Result.success("样本新增成功");
     }
 
     @DeleteMapping("/delete/{id}")
     public Result deleteById(@PathVariable Long id) {
         LoginUser currentUser = UserContext.get();
-        if (currentUser == null) {
-            return Result.error("未登录");
-        }
-
+        if (currentUser == null) return Result.error("未登录");
         BiomedSample biomedSample = biomedSampleService.selectById(id);
-        if (biomedSample == null) {
-            return Result.error("样本不存在");
-        }
-
-        if ("researcher".equals(currentUser.getRole())
-                && !currentUser.getUserId().equals(biomedSample.getCreateBy())) {
+        if (biomedSample == null) return Result.error("样本不存在");
+        if ("researcher".equals(currentUser.getRole()) && !currentUser.getUserId().equals(biomedSample.getCreateBy())) {
             return Result.error("无权限删除该样本");
         }
-
         biomedSampleService.deleteById(id);
+        writeLog(id, currentUser.getUserId(), "删除", "删除样本" + biomedSample.getSampleNo());
         return Result.success("样本删除成功");
     }
 
     @PutMapping("/update")
     public Result updateById(@RequestBody BiomedSample biomedSample) {
         LoginUser currentUser = UserContext.get();
-        if (currentUser == null) {
-            return Result.error("未登录");
-        }
-
-        if (biomedSample.getId() == null) {
-            return Result.error("样本ID不能为空");
-        }
-
+        if (currentUser == null) return Result.error("未登录");
+        if (biomedSample.getId() == null) return Result.error("样本ID不能为空");
         BiomedSample oldSample = biomedSampleService.selectById(biomedSample.getId());
-        if (oldSample == null) {
-            return Result.error("样本不存在");
-        }
-
-        if ("researcher".equals(currentUser.getRole())
-                && !currentUser.getUserId().equals(oldSample.getCreateBy())) {
+        if (oldSample == null) return Result.error("样本不存在");
+        if ("researcher".equals(currentUser.getRole()) && !currentUser.getUserId().equals(oldSample.getCreateBy())) {
             return Result.error("无权限修改该样本");
         }
-
         biomedSample.setCreateBy(oldSample.getCreateBy());
         biomedSampleService.updateById(biomedSample);
+        writeLog(biomedSample.getId(), currentUser.getUserId(), "修改", "修改样本" + oldSample.getSampleNo());
         return Result.success("样本修改成功");
     }
 
     @GetMapping("/selectById/{id}")
     public Result selectById(@PathVariable Long id) {
         LoginUser currentUser = UserContext.get();
-        if (currentUser == null) {
-            return Result.error("未登录");
-        }
-
+        if (currentUser == null) return Result.error("未登录");
         BiomedSample biomedSample = biomedSampleService.selectById(id);
-        if (biomedSample == null) {
-            return Result.error("样本不存在");
-        }
-
-        if ("researcher".equals(currentUser.getRole())
-                && !currentUser.getUserId().equals(biomedSample.getCreateBy())) {
+        if (biomedSample == null) return Result.error("样本不存在");
+        if ("researcher".equals(currentUser.getRole()) && !currentUser.getUserId().equals(biomedSample.getCreateBy())) {
             return Result.error("无权限查看该样本");
         }
-
         return Result.success(biomedSample);
     }
 
     @GetMapping("/selectAll")
     public Result selectAll(BiomedSample biomedSample) {
         LoginUser currentUser = UserContext.get();
-        if (currentUser == null) {
-            return Result.error("未登录");
-        }
-
-        if ("researcher".equals(currentUser.getRole())) {
-            biomedSample.setCreateBy(currentUser.getUserId());
-        }
-
-        List<BiomedSample> list = biomedSampleService.selectAll(biomedSample);
-        return Result.success(list);
+        if (currentUser == null) return Result.error("未登录");
+        if ("researcher".equals(currentUser.getRole())) biomedSample.setCreateBy(currentUser.getUserId());
+        return Result.success(biomedSampleService.selectAll(biomedSample));
     }
 
     @GetMapping("/selectPage")
@@ -126,39 +96,24 @@ public class BiomedSampleController {
                              @RequestParam(defaultValue = "1") Integer pageNum,
                              @RequestParam(defaultValue = "10") Integer pageSize) {
         LoginUser currentUser = UserContext.get();
-        if (currentUser == null) {
-            return Result.error("未登录");
-        }
-
-        if ("researcher".equals(currentUser.getRole())) {
-            biomedSample.setCreateBy(currentUser.getUserId());
-        }
-
-        PageInfo<?> page = biomedSampleService.selectPage(biomedSample, pageNum, pageSize);
+        if (currentUser == null) return Result.error("未登录");
+        if ("researcher".equals(currentUser.getRole())) biomedSample.setCreateBy(currentUser.getUserId());
+        PageInfo<BiomedSample> page = biomedSampleService.selectPage(biomedSample, pageNum, pageSize);
         return Result.success(page);
     }
 
     @PostMapping("/import")
     public Result importExcel(@RequestParam("file") MultipartFile file) {
         try {
-            if (file == null || file.isEmpty()) {
-                return Result.error("上传文件不能为空");
-            }
-
+            if (file == null || file.isEmpty()) return Result.error("上传文件不能为空");
             LoginUser currentUser = UserContext.get();
-
             List<BiomedSample> list = ExcelUtil.readSampleExcel(file.getInputStream());
-            if (list == null || list.isEmpty()) {
-                return Result.error("Excel中没有可导入的数据");
-            }
-
+            if (list == null || list.isEmpty()) return Result.error("Excel中没有可导入的数据");
             if (currentUser != null) {
-                for (BiomedSample sample : list) {
-                    sample.setCreateBy(currentUser.getUserId());
-                }
+                for (BiomedSample sample : list) sample.setCreateBy(currentUser.getUserId());
             }
-
             biomedSampleService.saveBatch(list);
+            if (currentUser != null) writeLog(null, currentUser.getUserId(), "导入", "批量导入样本" + list.size() + "条");
             return Result.success("导入成功：" + list.size() + "条");
         } catch (Exception e) {
             e.printStackTrace();
@@ -169,10 +124,8 @@ public class BiomedSampleController {
     @GetMapping("/export")
     public void export(HttpServletResponse response) throws Exception {
         List<BiomedSample> list = biomedSampleService.selectAll(null);
-
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet sheet = workbook.createSheet("样本数据");
-
         XSSFRow head = sheet.createRow(0);
         head.createCell(0).setCellValue("样本编号");
         head.createCell(1).setCellValue("样本名称");
@@ -188,7 +141,6 @@ public class BiomedSampleController {
         for (int i = 0; i < list.size(); i++) {
             BiomedSample s = list.get(i);
             XSSFRow row = sheet.createRow(i + 1);
-
             row.createCell(0).setCellValue(s.getSampleNo() == null ? "" : s.getSampleNo());
             row.createCell(1).setCellValue(s.getSampleName() == null ? "" : s.getSampleName());
             row.createCell(2).setCellValue(s.getSource() == null ? "" : s.getSource());
@@ -210,6 +162,18 @@ public class BiomedSampleController {
             out.flush();
         } finally {
             workbook.close();
+        }
+    }
+
+    private void writeLog(Long sampleId, Long userId, String type, String content) {
+        try {
+            BiomedOperLog log = new BiomedOperLog();
+            log.setSampleId(sampleId);
+            log.setOperBy(userId);
+            log.setOperType(type);
+            log.setContent(content);
+            biomedOperLogService.add(log);
+        } catch (Exception ignored) {
         }
     }
 

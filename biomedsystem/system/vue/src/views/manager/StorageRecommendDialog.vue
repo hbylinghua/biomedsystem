@@ -7,7 +7,7 @@
   >
     <div class="recommend-top-tip">
       <el-alert
-          title="系统会根据样本类型、队列、来源和历史使用情况推荐更合适的存储记录。采用后会自动回填真正的 storageId，样本将不再被视为“未入库”。"
+          title="系统会根据样本类型、队列、来源和历史使用情况推荐更合适的存储记录"
           type="info"
           :closable="false"
           show-icon
@@ -42,7 +42,7 @@
         empty-text="暂无推荐结果"
         style="width: 100%"
     >
-      <el-table-column prop="position" label="推荐位置" min-width="180" />
+      <el-table-column prop="position" label="推荐存储位置" min-width="180" />
       <el-table-column prop="temp" label="推荐温度" width="120" />
       <el-table-column prop="score" label="推荐分数" width="100" />
 
@@ -81,26 +81,13 @@ import { ElMessage } from 'element-plus'
 import { getStorageRecommendation } from '@/api/recommendation'
 
 const props = defineProps({
-  modelValue: {
-    type: Boolean,
-    default: false
-  },
-  sampleTypeId: {
-    type: [Number, String],
-    default: null
-  },
-  queueName: {
-    type: String,
-    default: ''
-  },
-  source: {
-    type: String,
-    default: ''
-  }
+  modelValue: { type: Boolean, default: false },
+  sampleTypeId: { type: [Number, String], default: null },
+  queueName: { type: String, default: '' },
+  source: { type: String, default: '' }
 })
 
 const emit = defineEmits(['update:modelValue', 'choose'])
-
 const loading = ref(false)
 const recommendList = ref([])
 
@@ -110,7 +97,6 @@ const loadData = async () => {
     recommendList.value = []
     return
   }
-
   loading.value = true
   try {
     const res = await getStorageRecommendation({
@@ -122,7 +108,6 @@ const loadData = async () => {
   } catch (err) {
     console.error('获取智能推荐失败：', err)
     recommendList.value = []
-    ElMessage.error('获取推荐失败')
   } finally {
     loading.value = false
   }
@@ -131,39 +116,22 @@ const loadData = async () => {
 const handleChoose = (row) => {
   emit('choose', row)
   emit('update:modelValue', false)
-  ElMessage.success(`已采用推荐位置：${row.position}`)
+  ElMessage.success(`已采用推荐存储记录：${row.position}`)
 }
 
-const handleClose = () => {
-  emit('update:modelValue', false)
-}
+const handleClose = () => emit('update:modelValue', false)
 
 watch(
     () => props.modelValue,
     (val) => {
-      if (val) {
-        loadData()
-      }
+      if (val) loadData()
     }
 )
 </script>
 
 <style scoped>
-.recommend-top-tip {
-  margin-bottom: 16px;
-}
-
-.recommend-query-info {
-  margin-bottom: 16px;
-}
-
-.recommend-action-bar {
-  margin-bottom: 16px;
-  text-align: right;
-}
-
-.reason-tags {
-  display: flex;
-  flex-wrap: wrap;
-}
+.recommend-top-tip { margin-bottom: 16px; }
+.recommend-query-info { margin-bottom: 16px; }
+.recommend-action-bar { margin-bottom: 16px; text-align: right; }
+.reason-tags { display: flex; flex-wrap: wrap; }
 </style>

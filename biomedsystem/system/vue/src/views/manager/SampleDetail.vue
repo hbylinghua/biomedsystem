@@ -11,13 +11,14 @@
 
           <div class="info-grid">
             <div class="info-row"><div class="label">样本编号：</div><div class="value">{{ detail.sampleNo || '-' }}</div></div>
-            <div class="info-row"><div class="label">样本名称：</div><div class="value">{{ detail.sampleName || '-' }}</div></div>
+            <div class="info-row"><div class="label">样本名称：</div><div class="value">{{ detail.sampleName || fallbackName }}</div></div>
             <div class="info-row"><div class="label">样本来源/志愿者：</div><div class="value">{{ detail.source || '-' }}</div></div>
             <div class="info-row"><div class="label">样本类型：</div><div class="value">{{ getTypeName(detail.sampleTypeId) }}</div></div>
             <div class="info-row"><div class="label">样本状态：</div><div class="value">{{ getStatusText(detail.status) }}</div></div>
             <div class="info-row"><div class="label">样本队列：</div><div class="value">{{ detail.queue || '-' }}</div></div>
             <div class="info-row"><div class="label">存储位置：</div><div class="value">{{ storageDetail.position || '未入库' }}</div></div>
             <div class="info-row"><div class="label">存储温度：</div><div class="value">{{ storageDetail.temp || '-' }}</div></div>
+            <div class="info-row"><div class="label">存储状态：</div><div class="value">{{ storageDetail.status || '-' }}</div></div>
             <div class="info-row"><div class="label">存储ID：</div><div class="value">{{ detail.storageId || '无' }}</div></div>
             <div class="info-row"><div class="label">采集时间：</div><div class="value">{{ formatTime(detail.collectTime) }}</div></div>
             <div class="info-row"><div class="label">创建时间：</div><div class="value">{{ formatTime(detail.createTime) }}</div></div>
@@ -52,7 +53,7 @@
         <div class="card-wrapper" style="margin-top: 16px;">
           <div class="card-title">当前判断</div>
           <el-alert
-              :title="detail.storageId ? '该样本已绑定存储记录' : '该样本尚未入库，会在首页显示“未入库”预警'"
+              :title="detail.storageId ? '该样本已绑定存储记录' : '该样本尚未入库，给它绑定 storageId 后首页“未入库”预警会消失'"
               :type="detail.storageId ? 'success' : 'warning'"
               :closable="false"
               show-icon
@@ -64,7 +65,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import request from '@/utils/request'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -77,6 +78,7 @@ const detail = ref({})
 const storageDetail = ref({})
 const typeList = ref([])
 const logList = ref([])
+const fallbackName = computed(() => detail.value?.sampleNo ? `样本-${detail.value.sampleNo}` : '-')
 
 const getTypeList = async () => {
   const res = await request.get('/sampleType/selectAll')
@@ -86,12 +88,11 @@ const getTypeList = async () => {
 const getDetail = async () => {
   const res = await request.get('/biomedSample/selectById/' + id)
   detail.value = res.data || {}
-
   if (detail.value.storageId) {
     try {
       const storageRes = await request.get('/biomedStorage/selectById/' + detail.value.storageId)
       storageDetail.value = storageRes.data || {}
-    } catch (e) {
+    } catch {
       storageDetail.value = {}
     }
   } else {
@@ -102,14 +103,10 @@ const getDetail = async () => {
 const getLogs = async () => {
   try {
     const res = await request.get('/biomedOperLog/selectPage', {
-      params: {
-        pageNum: 1,
-        pageSize: 20,
-        sampleId: id
-      }
+      params: { pageNum: 1, pageSize: 20, sampleId: id }
     })
     logList.value = res.data?.list || []
-  } catch (e) {
+  } catch {
     logList.value = []
   }
 }
@@ -118,21 +115,9 @@ const getTypeName = (typeId) => {
   const item = typeList.value.find(i => i.id === typeId)
   return item ? item.typeName : '未知'
 }
-
-const getStatusText = (status) => {
-  if (status === 0) return '待处理'
-  if (status === 1) return '正常'
-  if (status === 2) return '异常'
-  return '其他'
-}
-
-const formatTime = (time) => {
-  return time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '无'
-}
-
-const toEdit = () => {
-  router.push({ path: '/sample', query: { editId: id } })
-}
+const getStatusText = (status) => status === 0 ? '待处理' : status === 1 ? '正常' : status === 2 ? '异常' : '其他'
+const formatTime = (time) => time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '无'
+const toEdit = () => router.push({ path: '/sample', query: { editId: id } })
 
 const deleteSample = async () => {
   await ElMessageBox.confirm('确认删除该样本？', '提示', { type: 'warning' })
@@ -149,50 +134,14 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.detail-page {
-  padding: 20px;
-  background: #f5f7fa;
-  min-height: 100vh;
-}
-.back-bar {
-  margin-bottom: 15px;
-}
-.card-wrapper {
-  background: #fff;
-  border-radius: 10px;
-  padding: 25px;
-  box-shadow: 0 2px 10px #00000008;
-}
-.card-title {
-  font-size: 16px;
-  font-weight: bold;
-  margin-bottom: 20px;
-  color: #333;
-}
-.info-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 24px;
-}
-.info-row {
-  display: flex;
-  padding: 12px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-.label {
-  width: 120px;
-  font-weight: 600;
-  color: #666;
-}
-.value {
-  color: #333;
-  flex: 1;
-}
-.action-group {
-  display: flex;
-  gap: 10px;
-}
-.action-group.vertical {
-  flex-direction: column;
-}
+.detail-page { padding: 20px; background: #f5f7fa; min-height: 100vh; }
+.back-bar { margin-bottom: 15px; }
+.card-wrapper { background: #fff; border-radius: 10px; padding: 25px; box-shadow: 0 2px 10px #00000008; }
+.card-title { font-size: 16px; font-weight: bold; margin-bottom: 20px; color: #333; }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
+.info-row { display: flex; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+.label { width: 120px; font-weight: 600; color: #666; }
+.value { color: #333; flex: 1; }
+.action-group { display: flex; gap: 10px; }
+.action-group.vertical { flex-direction: column; }
 </style>

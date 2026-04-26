@@ -25,22 +25,13 @@
         <result property="temp" column="temp"/>
         <result property="expireTime" column="expire_time"/>
         <result property="status" column="status"/>
-        <result property="sampleName" column="sample_name"/>
         <result property="createTime" column="create_time"/>
     </resultMap>
 
     <select id="selectCandidateStorages" resultMap="storageResultMap">
-        SELECT
-            id,
-            position,
-            temp,
-            expire_time,
-            status,
-            sample_name,
-            create_time
+        SELECT id, position, temp, expire_time, status, create_time
         FROM biomed_storage
-        WHERE status IS NULL
-           OR status NOT IN ('销毁', '过期')
+        WHERE status IS NULL OR status NOT IN ('销毁', '过期')
         ORDER BY create_time DESC
     </select>
 
@@ -62,62 +53,25 @@
         SELECT COUNT(1)
         FROM biomed_sample s
         WHERE s.storage_id = #{storageId}
-        <if test="sampleTypeId != null">
-            AND s.sample_type_id = #{sampleTypeId}
-        </if>
-        <if test="queueName != null and queueName != ''">
-            AND s.queue = #{queueName}
-        </if>
-        <if test="source != null and source != ''">
-            AND s.source = #{source}
-        </if>
-        <if test="role == 'researcher'">
-            AND s.create_by = #{userId}
-        </if>
+        <if test="sampleTypeId != null"> AND s.sample_type_id = #{sampleTypeId}</if>
+        <if test="queueName != null and queueName != ''"> AND s.queue = #{queueName}</if>
+        <if test="source != null and source != ''"> AND s.source = #{source}</if>
+        <if test="role == 'researcher'"> AND s.create_by = #{userId}</if>
     </select>
 
     <select id="selectPendingSamples" resultMap="sampleResultMap">
-        SELECT
-        id,
-        sample_no,
-        sample_type_id,
-        queue,
-        source,
-        storage_id,
-        create_by,
-        status,
-        sample_name,
-        create_time,
-        update_time,
-        collect_time
+        SELECT id, sample_no, sample_type_id, queue, source, storage_id, create_by, status, sample_name, create_time, update_time, collect_time
         FROM biomed_sample
         WHERE 1 = 1
-        <if test="role == 'researcher'">
-            AND create_by = #{userId}
-        </if>
+        <if test="role == 'researcher'"> AND create_by = #{userId}</if>
         ORDER BY collect_time DESC, create_time DESC
     </select>
 
     <select id="selectAllSamplesByScope" resultMap="sampleResultMap">
-        SELECT
-        id,
-        sample_no,
-        sample_type_id,
-        queue,
-        source,
-        storage_id,
-        create_by,
-        status,
-        sample_name,
-        create_time,
-        update_time,
-        collect_time
+        SELECT id, sample_no, sample_type_id, queue, source, storage_id, create_by, status, sample_name, create_time, update_time, collect_time
         FROM biomed_sample
         WHERE 1 = 1
-        <if test="role == 'researcher'">
-            AND create_by = #{userId}
-        </if>
+        <if test="role == 'researcher'"> AND create_by = #{userId}</if>
         ORDER BY collect_time DESC, create_time DESC
     </select>
-
 </mapper>

@@ -32,35 +32,33 @@ public class BiomedSampleService {
         String prefix = "BIO" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
         String suffix = String.format("%06d", System.currentTimeMillis() % 1000000);
         biomedSample.setSampleNo(prefix + suffix);
-
-        if (biomedSample.getStatus() == null) {
-            biomedSample.setStatus(0);
+        if (biomedSample.getStatus() == null) biomedSample.setStatus(0);
+        if (biomedSample.getCollectTime() == null) biomedSample.setCollectTime(LocalDateTime.now());
+        if (biomedSample.getSampleName() == null || biomedSample.getSampleName().isBlank()) {
+            biomedSample.setSampleName("样本-" + biomedSample.getSampleNo());
         }
-        if (biomedSample.getCollectTime() == null) {
-            biomedSample.setCollectTime(LocalDateTime.now());
-        }
-
         biomedSample.setCreateTime(LocalDateTime.now());
         biomedSample.setUpdateTime(LocalDateTime.now());
         biomedSampleMapper.insert(biomedSample);
     }
 
-    public void deleteById(Long id) {
-        biomedSampleMapper.deleteById(id);
-    }
+    public void deleteById(Long id) { biomedSampleMapper.deleteById(id); }
 
     public void updateById(BiomedSample biomedSample) {
+        if (biomedSample.getSampleName() == null || biomedSample.getSampleName().isBlank()) {
+            BiomedSample old = biomedSampleMapper.selectById(biomedSample.getId());
+            if (old != null && old.getSampleName() != null && !old.getSampleName().isBlank()) {
+                biomedSample.setSampleName(old.getSampleName());
+            } else if (old != null && old.getSampleNo() != null) {
+                biomedSample.setSampleName("样本-" + old.getSampleNo());
+            }
+        }
         biomedSample.setUpdateTime(LocalDateTime.now());
         biomedSampleMapper.updateById(biomedSample);
     }
 
-    public BiomedSample selectById(Long id) {
-        return biomedSampleMapper.selectById(id);
-    }
-
-    public List<BiomedSample> selectAll(BiomedSample biomedSample) {
-        return biomedSampleMapper.selectAll(biomedSample);
-    }
+    public BiomedSample selectById(Long id) { return biomedSampleMapper.selectById(id); }
+    public List<BiomedSample> selectAll(BiomedSample biomedSample) { return biomedSampleMapper.selectAll(biomedSample); }
 
     public PageInfo<BiomedSample> selectPage(BiomedSample biomedSample, Integer pageNum, Integer pageSize) {
         PageHelper.startPage(pageNum, pageSize);
@@ -68,7 +66,5 @@ public class BiomedSampleService {
         return PageInfo.of(list);
     }
 
-    public void saveBatch(List<BiomedSample> sampleList) {
-        biomedSampleMapper.insertBatch(sampleList);
-    }
+    public void saveBatch(List<BiomedSample> sampleList) { biomedSampleMapper.insertBatch(sampleList); }
 }
