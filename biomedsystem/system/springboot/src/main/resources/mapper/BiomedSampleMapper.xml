@@ -17,8 +17,7 @@
         <result column="status" property="status"/>
     </resultMap>
 
-    <!-- 基础CRUD查询 -->
-    <select id="selectAll" resultType="com.example.entity.BiomedSample">
+    <select id="selectAll" resultMap="BiomedSampleResultMap">
         select * from biomed_sample
         <where>
             <if test="id != null"> and id = #{id}</if>
@@ -49,7 +48,6 @@
         </where>
         order by id desc
     </select>
-
 
     <insert id="insert">
         INSERT INTO biomed_sample (
@@ -104,10 +102,6 @@
         SELECT * FROM biomed_sample WHERE id = #{id}
     </select>
 
-    <!-- ========== 分析相关SQL ========== -->
-
-    <!-- 1. 队列样本占比分析 -->
-    <!-- 1. 队列样本占比分析 -->
     <select id="selectQueueRatio" resultType="java.util.Map">
         SELECT
         queue AS queue,
@@ -135,7 +129,6 @@
         ORDER BY count DESC
     </select>
 
-    <!-- 2. 采集时间分布分析 -->
     <select id="selectCollectTimeDist" resultType="java.util.Map">
         SELECT
         DATE(collect_time) AS collectDate,
@@ -163,7 +156,6 @@
         ORDER BY collectDate ASC
     </select>
 
-    <!-- 3. 样本类型数量分析 -->
     <select id="selectSampleTypeCount" resultType="java.util.Map">
         SELECT
         st.id AS typeId,
@@ -191,30 +183,10 @@
         ORDER BY count DESC
     </select>
 
-    <select id="selectPage" parameterType="com.example.entity.BiomedSample" resultMap="BiomedSampleResultMap">
-        SELECT * FROM biomed_sample
-        <where>
-            <if test="sampleName != null and sampleName != ''">
-                AND sample_name LIKE CONCAT('%', #{sampleName}, '%')
-            </if>
-            <if test="sampleNo != null and sampleNo != ''">
-                AND sample_no LIKE CONCAT('%', #{sampleNo}, '%')
-            </if>
-            <if test="sampleTypeId != null">
-                AND sample_type_id = #{sampleTypeId}
-            </if>
-            <if test="queue != null and queue != ''">
-                AND queue LIKE CONCAT('%', #{queue}, '%')
-            </if>
-        </where>
-        ORDER BY id DESC
-    </select>
-
-    <!-- 批量插入样本（Excel批量导入专用 → 已修复） -->
     <insert id="insertBatch">
         INSERT INTO biomed_sample (
         sample_no, sample_type_id, queue, collect_time,
-        source, storage_id, create_by, create_time, update_time, status
+        source, storage_id, create_by, create_time, update_time, sample_name, status
         ) VALUES
         <foreach collection="list" item="item" separator=",">
             (
@@ -227,7 +199,7 @@
             #{item.createBy},
             NOW(),
             NOW(),
-            <!-- 关键：空时设为 0（正常） -->
+            #{item.sampleName},
             IFNULL(#{item.status}, 0)
             )
         </foreach>

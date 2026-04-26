@@ -7,7 +7,7 @@
   >
     <div class="recommend-top-tip">
       <el-alert
-          title="系统会根据样本类型、队列、来源和历史使用情况推荐更合适的存储位置"
+          title="系统会根据样本类型、队列、来源和历史使用情况推荐更合适的存储记录。采用后会自动回填真正的 storageId，样本将不再被视为“未入库”。"
           type="info"
           :closable="false"
           show-icon
@@ -19,10 +19,10 @@
         <el-descriptions-item label="样本类型ID">
           {{ sampleTypeId || '-' }}
         </el-descriptions-item>
-        <el-descriptions-item label="队列">
+        <el-descriptions-item label="样本队列">
           {{ queueName || '-' }}
         </el-descriptions-item>
-        <el-descriptions-item label="来源">
+        <el-descriptions-item label="样本来源">
           {{ source || '-' }}
         </el-descriptions-item>
       </el-descriptions>
@@ -104,10 +104,6 @@ const emit = defineEmits(['update:modelValue', 'choose'])
 const loading = ref(false)
 const recommendList = ref([])
 
-const isSuccess = (res) => {
-  return !!res && (res.code === 200 || res.code === '200')
-}
-
 const loadData = async () => {
   if (!props.sampleTypeId) {
     ElMessage.warning('请先选择样本类型后再进行智能推荐')
@@ -122,13 +118,7 @@ const loadData = async () => {
       queueName: props.queueName,
       source: props.source
     })
-
-    if (isSuccess(res)) {
-      recommendList.value = res.data || []
-    } else {
-      recommendList.value = []
-      ElMessage.error(res.msg || '获取推荐失败')
-    }
+    recommendList.value = res.data || []
   } catch (err) {
     console.error('获取智能推荐失败：', err)
     recommendList.value = []

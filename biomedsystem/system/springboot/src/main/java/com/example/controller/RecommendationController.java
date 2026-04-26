@@ -52,4 +52,18 @@ public class RecommendationController {
                 currentUser.getRole()
         ));
     }
+
+    @GetMapping("/assistantAsk")
+    public Result assistantAsk(@RequestParam String question) {
+        LoginUser currentUser = UserContext.get();
+        if (currentUser == null) {
+            return Result.error("未登录");
+        }
+
+        return Result.success(recommendationService.assistantAsk(
+                question,
+                currentUser.getUserId(),
+                currentUser.getRole()
+        ));
+    }
 }

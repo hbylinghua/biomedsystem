@@ -31,4 +31,9 @@ public interface RecommendationMapper {
             @Param("userId") Long userId,
             @Param("role") String role
     );
+
+    List<BiomedSample> selectAllSamplesByScope(
+            @Param("userId") Long userId,
+            @Param("role") String role
+    );
 }

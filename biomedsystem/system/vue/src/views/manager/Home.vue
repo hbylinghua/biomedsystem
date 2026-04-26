@@ -7,7 +7,7 @@
       </div>
       <div class="actions">
         <el-button @click="loadAll">刷新</el-button>
-        <el-button type="primary" @click="$router.push('/sampleAnalysis')">
+        <el-button type="primary" @click="router.push('/sampleAnalysis')">
           进入详细分析
         </el-button>
       </div>
@@ -68,32 +68,32 @@
     <div class="metric-grid">
       <el-card class="metric-item">
         <div class="metric-title">样本总量</div>
-        <div class="metric-value">{{ overview.totalCount }}</div>
+        <div class="metric-value">{{ overview.totalCount || 0 }}</div>
       </el-card>
 
       <el-card class="metric-item">
         <div class="metric-title">今日新增</div>
-        <div class="metric-value">{{ overview.todayAddCount }}</div>
+        <div class="metric-value">{{ overview.todayAddCount || 0 }}</div>
       </el-card>
 
       <el-card class="metric-item">
-        <div class="metric-title">已入库存</div>
-        <div class="metric-value">{{ overview.inStorageCount }}</div>
+        <div class="metric-title">已入库样本</div>
+        <div class="metric-value">{{ overview.inStorageCount || 0 }}</div>
       </el-card>
 
       <el-card class="metric-item">
         <div class="metric-title">待处理样本</div>
-        <div class="metric-value">{{ overview.pendingCount }}</div>
+        <div class="metric-value">{{ overview.pendingCount || 0 }}</div>
       </el-card>
 
       <el-card class="metric-item">
         <div class="metric-title">异常样本</div>
-        <div class="metric-value danger">{{ overview.abnormalCount }}</div>
+        <div class="metric-value danger">{{ overview.abnormalCount || 0 }}</div>
       </el-card>
 
       <el-card class="metric-item">
-        <div class="metric-title">入库率</div>
-        <div class="metric-value">{{ overview.storageUsageRate }}%</div>
+        <div class="metric-title">已入库占比</div>
+        <div class="metric-value">{{ overview.storageUsageRate || 0 }}%</div>
       </el-card>
     </div>
 
@@ -120,7 +120,7 @@
         <el-table :data="warnings" size="small" height="320" border>
           <el-table-column prop="sampleNo" label="样本编号" min-width="130" />
           <el-table-column prop="sampleName" label="样本名称" min-width="140" />
-          <el-table-column prop="queue" label="队列" min-width="100" />
+          <el-table-column prop="queue" label="样本队列" min-width="120" />
           <el-table-column prop="warningText" label="预警信息" min-width="160" />
         </el-table>
       </el-card>
@@ -142,6 +142,10 @@
         </el-timeline>
       </el-card>
     </div>
+
+    <div style="margin-top: 16px;">
+      <PendingRecommendCard />
+    </div>
   </div>
 </template>
 
@@ -152,6 +156,14 @@ import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import dayjs from 'dayjs'
 import request from '@/utils/request'
+import PendingRecommendCard from './PendingRecommendCard.vue'
+import {
+  getDashboardOverview,
+  getDashboardTrend,
+  getDashboardSource,
+  getDashboardStatus,
+  getDashboardWarnings
+} from '@/api/dashboard'
 
 const router = useRouter()
 
@@ -168,7 +180,6 @@ const sampleTypeList = ref([])
 const queueList = ref([])
 const noticeList = ref([])
 const warnings = ref([])
-const allSamples = ref([])
 
 const filterForm = reactive({
   timeRange: [],
@@ -185,20 +196,9 @@ const overview = reactive({
   storageUsageRate: 0
 })
 
-const isSuccess = (res) => {
-  return !!res && (res.code === 200 || res.code === '200')
-}
-
 const formatTime = (value) => {
   if (!value) return '-'
   return dayjs(value).format('YYYY-MM-DD HH:mm:ss')
-}
-
-const normalizeStatus = (status) => {
-  if (status === 0 || status === '待处理') return '待处理'
-  if (status === 1 || status === '正常') return '正常'
-  if (status === 2 || status === '异常') return '异常'
-  return '其他'
 }
 
 const buildParams = () => {
@@ -214,71 +214,6 @@ const buildParams = () => {
     params.sampleTypeId = filterForm.sampleTypeId
   }
   return params
-}
-
-const applyFilters = (samples) => {
-  let list = [...samples]
-
-  if (filterForm.queueName) {
-    list = list.filter(item => item.queue === filterForm.queueName)
-  }
-
-  if (filterForm.sampleTypeId) {
-    list = list.filter(item => item.sampleTypeId === filterForm.sampleTypeId)
-  }
-
-  if (filterForm.timeRange && filterForm.timeRange.length === 2) {
-    const start = dayjs(filterForm.timeRange[0]).startOf('day')
-    const end = dayjs(filterForm.timeRange[1]).endOf('day')
-    list = list.filter(item => {
-      if (!item.collectTime) return false
-      const t = dayjs(item.collectTime)
-      return (t.isAfter(start) || t.isSame(start)) && (t.isBefore(end) || t.isSame(end))
-    })
-  }
-
-  return list
-}
-
-const calcOverview = (samples) => {
-  const today = dayjs().format('YYYY-MM-DD')
-
-  overview.totalCount = samples.length
-  overview.todayAddCount = samples.filter(item => {
-    return item.createTime && dayjs(item.createTime).format('YYYY-MM-DD') === today
-  }).length
-
-  overview.inStorageCount = samples.filter(item => !!item.storageId).length
-  overview.pendingCount = samples.filter(item => normalizeStatus(item.status) === '待处理').length
-  overview.abnormalCount = samples.filter(item => normalizeStatus(item.status) === '异常').length
-  overview.storageUsageRate = samples.length
-      ? Number(((overview.inStorageCount / samples.length) * 100).toFixed(2))
-      : 0
-}
-
-const buildDistribution = (samples, getter) => {
-  const counter = {}
-  samples.forEach(item => {
-    const key = getter(item) || '未知'
-    counter[key] = (counter[key] || 0) + 1
-  })
-
-  return {
-    xAxis: Object.keys(counter),
-    series: Object.values(counter)
-  }
-}
-
-const calcWarnings = (samples) => {
-  warnings.value = samples
-      .filter(item => normalizeStatus(item.status) === '异常' || !item.storageId)
-      .map(item => ({
-        sampleNo: item.sampleNo,
-        sampleName: item.sampleName,
-        queue: item.queue,
-        warningText: normalizeStatus(item.status) === '异常' ? '样本异常' : '未入库'
-      }))
-      .slice(0, 10)
 }
 
 const initCharts = async () => {
@@ -366,52 +301,41 @@ const renderStatus = (data) => {
   })
 }
 
+const loadDictData = async () => {
+  try {
+    const [typeRes, sampleRes] = await Promise.all([
+      request.get('/sampleType/selectAll'),
+      request.get('/biomedSample/selectAll')
+    ])
+    sampleTypeList.value = typeRes.data || []
+    const samples = sampleRes.data || []
+    queueList.value = [...new Set(samples.map(s => s.queue).filter(Boolean))]
+  } catch (e) {
+    sampleTypeList.value = []
+    queueList.value = []
+  }
+}
+
 const loadAll = async () => {
   try {
     const params = buildParams()
 
-    const [typeRes, sampleRes, trendRes, noticeRes] = await Promise.allSettled([
-      request.get('/sampleType/selectAll'),
-      request.get('/biomedSample/selectAll'),
-      request.get('/api/sample/analysis/collectTimeDist', { params }),
+    const [overviewRes, trendRes, sourceRes, statusRes, warningRes, noticeRes] = await Promise.all([
+      getDashboardOverview(params),
+      getDashboardTrend(params),
+      getDashboardSource(params),
+      getDashboardStatus(params),
+      getDashboardWarnings(params),
       request.get('/notice/selectAll')
     ])
 
-    if (typeRes.status === 'fulfilled' && isSuccess(typeRes.value)) {
-      sampleTypeList.value = typeRes.value.data || []
-    } else {
-      sampleTypeList.value = []
-    }
+    Object.assign(overview, overviewRes.data || {})
+    warnings.value = warningRes.data || []
+    noticeList.value = noticeRes.data || []
 
-    if (sampleRes.status === 'fulfilled' && isSuccess(sampleRes.value)) {
-      allSamples.value = sampleRes.value.data || []
-      queueList.value = [...new Set(allSamples.value.map(item => item.queue).filter(Boolean))]
-    } else {
-      allSamples.value = []
-      queueList.value = []
-    }
-
-    const filteredSamples = applyFilters(allSamples.value)
-    calcOverview(filteredSamples)
-    calcWarnings(filteredSamples)
-
-    const sourceData = buildDistribution(filteredSamples, item => item.source)
-    const statusData = buildDistribution(filteredSamples, item => normalizeStatus(item.status))
-
-    renderSource(sourceData)
-    renderStatus(statusData)
-
-    if (trendRes.status === 'fulfilled' && isSuccess(trendRes.value)) {
-      renderTrend(trendRes.value.data || { xAxis: [], series: [] })
-    } else {
-      renderTrend({ xAxis: [], series: [] })
-    }
-
-    if (noticeRes.status === 'fulfilled' && isSuccess(noticeRes.value)) {
-      noticeList.value = noticeRes.value.data || []
-    } else {
-      noticeList.value = []
-    }
+    renderTrend(trendRes.data || {})
+    renderSource(sourceRes.data || {})
+    renderStatus(statusRes.data || {})
   } catch (err) {
     console.error('首页数据加载失败：', err)
     ElMessage.error('首页数据加载失败')
@@ -427,6 +351,7 @@ const resetFilter = () => {
 
 onMounted(async () => {
   await initCharts()
+  await loadDictData()
   await loadAll()
   timer = setInterval(loadAll, 60000)
 })

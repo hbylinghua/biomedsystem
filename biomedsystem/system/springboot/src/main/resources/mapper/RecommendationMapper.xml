@@ -98,4 +98,26 @@
         ORDER BY collect_time DESC, create_time DESC
     </select>
 
+    <select id="selectAllSamplesByScope" resultMap="sampleResultMap">
+        SELECT
+        id,
+        sample_no,
+        sample_type_id,
+        queue,
+        source,
+        storage_id,
+        create_by,
+        status,
+        sample_name,
+        create_time,
+        update_time,
+        collect_time
+        FROM biomed_sample
+        WHERE 1 = 1
+        <if test="role == 'researcher'">
+            AND create_by = #{userId}
+        </if>
+        ORDER BY collect_time DESC, create_time DESC
+    </select>
+
 </mapper>

@@ -4,6 +4,7 @@ import com.example.vo.PendingTaskRecommendationVO;
 import com.example.vo.StorageRecommendationVO;
 
 import java.util.List;
+import java.util.Map;
 
 public interface RecommendationService {
 
@@ -17,6 +18,12 @@ public interface RecommendationService {
 
     List<PendingTaskRecommendationVO> recommendPendingTasks(
             Integer limit,
+            Long userId,
+            String role
+    );
+
+    Map<String, Object> assistantAsk(
+            String question,
             Long userId,
             String role
     );

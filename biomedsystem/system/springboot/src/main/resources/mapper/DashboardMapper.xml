@@ -34,7 +34,7 @@
         ROUND(
         (
         SUM(CASE WHEN s.storage_id IS NOT NULL THEN 1 ELSE 0 END) /
-        NULLIF((SELECT COUNT(*) FROM biomed_storage), 0)
+        NULLIF(COUNT(*), 0)
         ) * 100, 2
         ) AS storageUsageRate
         FROM biomed_sample s
@@ -85,16 +85,16 @@
         s.status,
         s.collect_time AS collectTime,
         CASE
-        WHEN s.status = 2 THEN '样本异常'
         WHEN s.storage_id IS NULL THEN '未入库'
+        WHEN s.status = 2 THEN '样本异常'
         WHEN TIMESTAMPDIFF(DAY, s.collect_time, NOW()) &gt;= 30 THEN '存放超期'
         ELSE '关注样本'
         END AS warningText
         FROM biomed_sample s
         <include refid="baseWhere"/>
         AND (
-        s.status = 2
-        OR s.storage_id IS NULL
+        s.storage_id IS NULL
+        OR s.status = 2
         OR TIMESTAMPDIFF(DAY, s.collect_time, NOW()) &gt;= 30
         )
         ORDER BY s.collect_time DESC

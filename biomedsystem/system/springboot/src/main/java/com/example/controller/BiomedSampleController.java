@@ -9,19 +9,17 @@ import com.example.service.BiomedSampleService;
 import com.github.pagehelper.PageInfo;
 import jakarta.annotation.Resource;
 import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.http.HttpServletResponse;
+import org.apache.poi.xssf.usermodel.XSSFRow;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.apache.poi.xssf.usermodel.*;
-import jakarta.servlet.http.HttpServletResponse;
+
 import java.net.URLEncoder;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-
-/**
- * 生物医学样本前端接口层
- * 替换原有GoodsController
- */
 @RestController
 @RequestMapping("/biomedSample")
 public class BiomedSampleController {
@@ -29,10 +27,6 @@ public class BiomedSampleController {
     @Resource
     private BiomedSampleService biomedSampleService;
 
-    /**
-     * 新增样本
-     * Postman请求：POST /biomedSample/add，Body选JSON格式
-     */
     @PostMapping("/add")
     public Result add(@RequestBody BiomedSample biomedSample) {
         LoginUser currentUser = UserContext.get();
@@ -45,11 +39,6 @@ public class BiomedSampleController {
         return Result.success("样本新增成功");
     }
 
-
-    /**
-     * 根据ID删除样本
-     * Postman请求：DELETE /biomedSample/delete/1
-     */
     @DeleteMapping("/delete/{id}")
     public Result deleteById(@PathVariable Long id) {
         LoginUser currentUser = UserContext.get();
@@ -71,11 +60,6 @@ public class BiomedSampleController {
         return Result.success("样本删除成功");
     }
 
-
-    /**
-     * 修改样本
-     * Postman请求：PUT /biomedSample/update，Body选JSON格式
-     */
     @PutMapping("/update")
     public Result updateById(@RequestBody BiomedSample biomedSample) {
         LoginUser currentUser = UserContext.get();
@@ -97,18 +81,11 @@ public class BiomedSampleController {
             return Result.error("无权限修改该样本");
         }
 
-        // 防止前端乱改 createBy
         biomedSample.setCreateBy(oldSample.getCreateBy());
-
         biomedSampleService.updateById(biomedSample);
         return Result.success("样本修改成功");
     }
 
-
-    /**
-     * 根据ID查询样本
-     * Postman请求：GET /biomedSample/selectById/1
-     */
     @GetMapping("/selectById/{id}")
     public Result selectById(@PathVariable Long id) {
         LoginUser currentUser = UserContext.get();
@@ -129,11 +106,6 @@ public class BiomedSampleController {
         return Result.success(biomedSample);
     }
 
-
-    /**
-     * 条件查询所有样本
-     * Postman请求：GET /biomedSample/selectAll
-     */
     @GetMapping("/selectAll")
     public Result selectAll(BiomedSample biomedSample) {
         LoginUser currentUser = UserContext.get();
@@ -149,11 +121,6 @@ public class BiomedSampleController {
         return Result.success(list);
     }
 
-
-    /**
-     * 分页查询样本
-     * Postman请求：GET /biomedSample/selectPage?pageNum=1&pageSize=10
-     */
     @GetMapping("/selectPage")
     public Result selectPage(BiomedSample biomedSample,
                              @RequestParam(defaultValue = "1") Integer pageNum,
@@ -167,11 +134,9 @@ public class BiomedSampleController {
             biomedSample.setCreateBy(currentUser.getUserId());
         }
 
-        PageInfo page = biomedSampleService.selectPage(biomedSample, pageNum, pageSize);
+        PageInfo<?> page = biomedSampleService.selectPage(biomedSample, pageNum, pageSize);
         return Result.success(page);
     }
-
-
 
     @PostMapping("/import")
     public Result importExcel(@RequestParam("file") MultipartFile file) {
@@ -203,46 +168,43 @@ public class BiomedSampleController {
 
     @GetMapping("/export")
     public void export(HttpServletResponse response) throws Exception {
-        // 1. 获取数据
         List<BiomedSample> list = biomedSampleService.selectAll(null);
 
-        // 2. 创建Excel
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet sheet = workbook.createSheet("样本数据");
 
-        // 3. 表头
         XSSFRow head = sheet.createRow(0);
         head.createCell(0).setCellValue("样本编号");
         head.createCell(1).setCellValue("样本名称");
-        head.createCell(2).setCellValue("样本类型");
-        head.createCell(3).setCellValue("存储位置");
-        head.createCell(4).setCellValue("采集时间");
-        head.createCell(5).setCellValue("创建时间");
+        head.createCell(2).setCellValue("样本来源");
+        head.createCell(3).setCellValue("样本类型");
+        head.createCell(4).setCellValue("样本队列");
+        head.createCell(5).setCellValue("存储ID");
+        head.createCell(6).setCellValue("采集时间");
+        head.createCell(7).setCellValue("状态");
+        head.createCell(8).setCellValue("创建时间");
 
-        // 4. 填充数据（兼容null，不依赖SampleTypeMapper）
         DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         for (int i = 0; i < list.size(); i++) {
             BiomedSample s = list.get(i);
             XSSFRow row = sheet.createRow(i + 1);
 
-            row.createCell(0).setCellValue(s.getSampleNo());
-            row.createCell(1).setCellValue(s.getSource());
-
-            // 临时方案：先导出ID，避免依赖SampleTypeMapper报错
-            row.createCell(2).setCellValue(s.getSampleTypeId() == null ? "未知" : s.getSampleTypeId().toString());
-
-            row.createCell(3).setCellValue(s.getQueue());
-            row.createCell(4).setCellValue(s.getCollectTime() == null ? "" : s.getCollectTime().format(dtf));
-            row.createCell(5).setCellValue(s.getCreateTime() == null ? "" : s.getCreateTime().format(dtf));
+            row.createCell(0).setCellValue(s.getSampleNo() == null ? "" : s.getSampleNo());
+            row.createCell(1).setCellValue(s.getSampleName() == null ? "" : s.getSampleName());
+            row.createCell(2).setCellValue(s.getSource() == null ? "" : s.getSource());
+            row.createCell(3).setCellValue(biomedSampleService.getSampleTypeName(s.getSampleTypeId()));
+            row.createCell(4).setCellValue(s.getQueue() == null ? "" : s.getQueue());
+            row.createCell(5).setCellValue(s.getStorageId() == null ? "" : String.valueOf(s.getStorageId()));
+            row.createCell(6).setCellValue(s.getCollectTime() == null ? "" : s.getCollectTime().format(dtf));
+            row.createCell(7).setCellValue(formatStatus(s.getStatus()));
+            row.createCell(8).setCellValue(s.getCreateTime() == null ? "" : s.getCreateTime().format(dtf));
         }
 
-        // 5. 响应头（标准写法）
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setCharacterEncoding("UTF-8");
         String fileName = URLEncoder.encode("样本列表", "UTF-8").replaceAll("\\+", "%20");
         response.setHeader("Content-Disposition", "attachment;filename*=UTF-8''" + fileName + ".xlsx");
 
-        // 6. 输出（try-with-resources 自动关闭流）
         try (ServletOutputStream out = response.getOutputStream()) {
             workbook.write(out);
             out.flush();
@@ -251,6 +213,13 @@ public class BiomedSampleController {
         }
     }
 
-
-
+    private String formatStatus(Integer status) {
+        if (status == null) return "待处理";
+        return switch (status) {
+            case 0 -> "待处理";
+            case 1 -> "正常";
+            case 2 -> "异常";
+            default -> "其他";
+        };
+    }
 }

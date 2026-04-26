@@ -32,20 +32,11 @@ import { getPendingTaskRecommendation } from '@/api/recommendation'
 const tableData = ref([])
 const loading = ref(false)
 
-const isSuccess = (res) => {
-  return !!res && (res.code === 200 || res.code === '200')
-}
-
 const loadData = async () => {
   loading.value = true
   try {
     const res = await getPendingTaskRecommendation({ limit: 5 })
-    if (isSuccess(res)) {
-      tableData.value = res.data || []
-    } else {
-      tableData.value = []
-      ElMessage.error(res.msg || '获取推荐任务失败')
-    }
+    tableData.value = res.data || []
   } catch (err) {
     console.error('获取待处理样本推荐失败：', err)
     tableData.value = []
