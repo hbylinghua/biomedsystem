@@ -51,7 +51,7 @@
         <el-table-column label="存储位置" min-width="160">
           <template #default="scope">{{ getStoragePosition(scope.row.storageId) }}</template>
         </el-table-column>
-        <el-table-column label="样本编号" prop="sampleNo" width="150" />
+        <el-table-column label="样本编号" prop="sampleNo" width="160" />
         <el-table-column label="采集时间" prop="collectTime" width="180">
           <template #default="scope">{{ formatTime(scope.row.collectTime) }}</template>
         </el-table-column>
@@ -79,20 +79,27 @@
 
     <el-dialog
         title="生物样本信息"
-        width="55%"
+        width="58%"
         v-model="data.formVisible"
         :close-on-click-modal="false"
         destroy-on-close
     >
       <el-form
           :model="data.form"
-          label-width="120px"
+          label-width="125px"
           style="padding-right: 20px"
           :rules="formRules"
           ref="formRef"
       >
         <el-form-item label="样本名称" prop="sampleName">
-          <el-input v-model="data.form.sampleName" autocomplete="off" placeholder="请输入样本名称" maxlength="50" show-word-limit />
+          <el-input
+              v-model="data.form.sampleName"
+              autocomplete="off"
+              placeholder="可不填；为空时系统自动生成"
+              maxlength="50"
+              show-word-limit
+          />
+          <div class="form-tip">编辑旧数据时，如果这里为空，后端会保留原名称或自动生成名称。</div>
         </el-form-item>
 
         <el-form-item label="样本来源/志愿者" prop="source">
@@ -123,16 +130,43 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="存储记录" prop="storageId">
+        <el-form-item label="选择已有存储" prop="storageId">
           <div class="storage-select-row">
-            <el-select v-model="data.form.storageId" placeholder="请选择存储记录" clearable style="width: 100%">
-              <el-option v-for="item in storageList" :key="item.id" :label="`${item.position}（${item.temp || '未知温度'}）`" :value="item.id" />
+            <el-select
+                v-model="data.form.storageId"
+                placeholder="可选择已有存储记录，也可直接填写下方存储位置"
+                clearable
+                style="width: 100%"
+                @change="handleStorageChange"
+            >
+              <el-option
+                  v-for="item in storageList"
+                  :key="item.id"
+                  :label="getStorageOptionLabel(item)"
+                  :value="item.id"
+              />
             </el-select>
             <el-button type="primary" plain @click="openRecommendDialog">智能推荐</el-button>
           </div>
-          <div class="storage-tip">
-            当前选择：{{ selectedStoragePosition }}
-          </div>
+          <div class="storage-tip">当前选择：{{ selectedStoragePosition }}</div>
+        </el-form-item>
+
+        <el-form-item label="存储位置" prop="storagePosition">
+          <el-input
+              v-model="data.form.storagePosition"
+              placeholder="请输入存储位置；如果不存在，保存样本时系统会自动创建存储记录"
+              maxlength="50"
+              show-word-limit
+          />
+        </el-form-item>
+
+        <el-form-item label="存储状态" prop="storageStatus">
+          <el-select v-model="data.form.storageStatus" placeholder="请选择存储状态" clearable style="width: 100%">
+            <el-option label="在库" value="在库" />
+            <el-option label="使用" value="使用" />
+            <el-option label="过期" value="过期" />
+            <el-option label="销毁" value="销毁" />
+          </el-select>
         </el-form-item>
 
         <el-form-item label="样本状态" prop="status">
@@ -192,6 +226,8 @@ const data = reactive({
     collectTime: '',
     sampleTypeId: null,
     storageId: null,
+    storagePosition: '',
+    storageStatus: '在库',
     status: 0
   },
   tableData: [],
@@ -199,7 +235,6 @@ const data = reactive({
 })
 
 const formRules = {
-  sampleName: [{ required: true, message: '请输入样本名称', trigger: 'blur' }],
   source: [{ required: true, message: '请输入样本来源/志愿者', trigger: 'blur' }],
   queue: [{ required: true, message: '请输入样本队列', trigger: 'blur' }],
   sampleTypeId: [{ required: true, message: '请选择样本类型', trigger: 'change' }],
@@ -210,9 +245,9 @@ const router = useRouter()
 const route = useRoute()
 
 const selectedStoragePosition = computed(() => {
+  if (data.form.storagePosition) return data.form.storagePosition
   if (!data.form.storageId) return '未入库'
-  const item = storageList.value.find(s => s.id === data.form.storageId)
-  return item ? `${item.position}（${item.temp || '未知温度'}）` : `存储记录#${data.form.storageId}`
+  return getStoragePosition(data.form.storageId)
 })
 
 const formatTime = (time) => time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-'
@@ -227,6 +262,12 @@ const getStoragePosition = (storageId) => {
   if (!storageId) return '未入库'
   const storageItem = storageList.value.find(item => item.id === storageId)
   return storageItem ? storageItem.position : `存储记录#${storageId}`
+}
+const isJsonText = (text) => typeof text === 'string' && text.trim().startsWith('{')
+const getStorageOptionLabel = (item) => {
+  if (!item) return ''
+  const tempText = item.temp && !isJsonText(item.temp) ? `，${item.temp}` : ''
+  return `${item.position || '未命名位置'}${tempText}（${item.status || '在库'}）`
 }
 
 const getCategoryList = async () => {
@@ -278,6 +319,8 @@ const resetFormData = () => {
     collectTime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
     sampleTypeId: null,
     storageId: null,
+    storagePosition: '',
+    storageStatus: '在库',
     status: 0
   }
 }
@@ -315,6 +358,7 @@ const exportSample = async () => {
 }
 
 const fillForm = (row) => {
+  const storage = storageList.value.find(item => item.id === row.storageId)
   data.form = {
     id: row.id,
     sampleName: row.sampleName || '',
@@ -324,6 +368,8 @@ const fillForm = (row) => {
     collectTime: row.collectTime ? dayjs(row.collectTime).format('YYYY-MM-DD HH:mm:ss') : '',
     sampleTypeId: row.sampleTypeId || null,
     storageId: row.storageId || null,
+    storagePosition: storage ? storage.position : '',
+    storageStatus: storage ? (storage.status || '在库') : '在库',
     status: row.status ?? 0
   }
 }
@@ -332,6 +378,14 @@ const handleEdit = async (row) => {
   await Promise.all([getCategoryList(), getStorageList()])
   fillForm(row)
   data.formVisible = true
+}
+
+const handleStorageChange = (storageId) => {
+  const item = storageList.value.find(s => s.id === storageId)
+  if (item) {
+    data.form.storagePosition = item.position || ''
+    data.form.storageStatus = item.status || '在库'
+  }
 }
 
 const save = () => {
@@ -349,6 +403,8 @@ const save = () => {
       collectTime: data.form.collectTime,
       sampleTypeId: data.form.sampleTypeId,
       storageId: data.form.storageId || null,
+      storagePosition: data.form.storagePosition || '',
+      storageStatus: data.form.storageStatus || '在库',
       status: data.form.status ?? 0
     }
     try {
@@ -359,6 +415,7 @@ const save = () => {
       }
       ElMessage.success('保存成功')
       data.formVisible = false
+      await getStorageList()
       load()
     } catch {
       ElMessage.error('保存失败')
@@ -402,6 +459,8 @@ const openRecommendDialog = () => {
 }
 const handleChooseRecommendation = (row) => {
   data.form.storageId = row.storageId
+  data.form.storagePosition = row.position || ''
+  data.form.storageStatus = row.status || '在库'
   ElMessage.success(`已自动回填存储记录：${row.position}`)
 }
 const reset = () => { data.name = null; data.pageNum = 1; load() }
@@ -430,4 +489,5 @@ onMounted(async () => {
 .storage-select-row { display: flex; align-items: center; gap: 12px; }
 .storage-select-row :deep(.el-select) { flex: 1; }
 .storage-tip { color: #909399; font-size: 12px; margin-top: 6px; }
+.form-tip { color: #909399; font-size: 12px; margin-top: 4px; line-height: 1.4; }
 </style>

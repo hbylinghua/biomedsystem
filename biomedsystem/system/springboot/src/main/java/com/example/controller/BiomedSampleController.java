@@ -4,7 +4,6 @@ import com.example.common.ExcelUtil;
 import com.example.common.Result;
 import com.example.common.context.UserContext;
 import com.example.common.model.LoginUser;
-import com.example.entity.BiomedOperLog;
 import com.example.entity.BiomedSample;
 import com.example.service.BiomedOperLogService;
 import com.example.service.BiomedSampleService;
@@ -37,7 +36,7 @@ public class BiomedSampleController {
         if (currentUser == null) return Result.error("未登录");
         biomedSample.setCreateBy(currentUser.getUserId());
         biomedSampleService.add(biomedSample);
-        writeLog(biomedSample.getId(), currentUser.getUserId(), "录入", "录入样本" + biomedSample.getSampleNo());
+        biomedOperLogService.record(biomedSample.getId(), currentUser.getUserId(), "录入", "录入样本：" + biomedSample.getSampleNo());
         return Result.success("样本新增成功");
     }
 
@@ -51,7 +50,7 @@ public class BiomedSampleController {
             return Result.error("无权限删除该样本");
         }
         biomedSampleService.deleteById(id);
-        writeLog(id, currentUser.getUserId(), "删除", "删除样本" + biomedSample.getSampleNo());
+        biomedOperLogService.record(id, currentUser.getUserId(), "删除", "删除样本：" + biomedSample.getSampleNo());
         return Result.success("样本删除成功");
     }
 
@@ -66,8 +65,11 @@ public class BiomedSampleController {
             return Result.error("无权限修改该样本");
         }
         biomedSample.setCreateBy(oldSample.getCreateBy());
+        if (biomedSample.getSampleNo() == null || biomedSample.getSampleNo().isBlank()) {
+            biomedSample.setSampleNo(oldSample.getSampleNo());
+        }
         biomedSampleService.updateById(biomedSample);
-        writeLog(biomedSample.getId(), currentUser.getUserId(), "修改", "修改样本" + oldSample.getSampleNo());
+        biomedOperLogService.record(biomedSample.getId(), currentUser.getUserId(), "修改", "修改样本：" + oldSample.getSampleNo());
         return Result.success("样本修改成功");
     }
 
@@ -87,6 +89,7 @@ public class BiomedSampleController {
     public Result selectAll(BiomedSample biomedSample) {
         LoginUser currentUser = UserContext.get();
         if (currentUser == null) return Result.error("未登录");
+        if (biomedSample == null) biomedSample = new BiomedSample();
         if ("researcher".equals(currentUser.getRole())) biomedSample.setCreateBy(currentUser.getUserId());
         return Result.success(biomedSampleService.selectAll(biomedSample));
     }
@@ -97,6 +100,7 @@ public class BiomedSampleController {
                              @RequestParam(defaultValue = "10") Integer pageSize) {
         LoginUser currentUser = UserContext.get();
         if (currentUser == null) return Result.error("未登录");
+        if (biomedSample == null) biomedSample = new BiomedSample();
         if ("researcher".equals(currentUser.getRole())) biomedSample.setCreateBy(currentUser.getUserId());
         PageInfo<BiomedSample> page = biomedSampleService.selectPage(biomedSample, pageNum, pageSize);
         return Result.success(page);
@@ -107,13 +111,16 @@ public class BiomedSampleController {
         try {
             if (file == null || file.isEmpty()) return Result.error("上传文件不能为空");
             LoginUser currentUser = UserContext.get();
+            if (currentUser == null) return Result.error("未登录");
+
             List<BiomedSample> list = ExcelUtil.readSampleExcel(file.getInputStream());
             if (list == null || list.isEmpty()) return Result.error("Excel中没有可导入的数据");
-            if (currentUser != null) {
-                for (BiomedSample sample : list) sample.setCreateBy(currentUser.getUserId());
+
+            for (BiomedSample sample : list) {
+                sample.setCreateBy(currentUser.getUserId());
             }
             biomedSampleService.saveBatch(list);
-            if (currentUser != null) writeLog(null, currentUser.getUserId(), "导入", "批量导入样本" + list.size() + "条");
+            biomedOperLogService.record(null, currentUser.getUserId(), "导入", "批量导入样本：" + list.size() + "条");
             return Result.success("导入成功：" + list.size() + "条");
         } catch (Exception e) {
             e.printStackTrace();
@@ -123,17 +130,22 @@ public class BiomedSampleController {
 
     @GetMapping("/export")
     public void export(HttpServletResponse response) throws Exception {
-        List<BiomedSample> list = biomedSampleService.selectAll(null);
+        LoginUser currentUser = UserContext.get();
+        BiomedSample query = new BiomedSample();
+        if (currentUser != null && "researcher".equals(currentUser.getRole())) {
+            query.setCreateBy(currentUser.getUserId());
+        }
+        List<BiomedSample> list = biomedSampleService.selectAll(query);
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet sheet = workbook.createSheet("样本数据");
         XSSFRow head = sheet.createRow(0);
         head.createCell(0).setCellValue("样本编号");
         head.createCell(1).setCellValue("样本名称");
-        head.createCell(2).setCellValue("样本来源");
-        head.createCell(3).setCellValue("样本类型");
-        head.createCell(4).setCellValue("样本队列");
-        head.createCell(5).setCellValue("存储ID");
-        head.createCell(6).setCellValue("采集时间");
+        head.createCell(2).setCellValue("样本来源/志愿者");
+        head.createCell(3).setCellValue("样本队列");
+        head.createCell(4).setCellValue("采集时间");
+        head.createCell(5).setCellValue("样本类型");
+        head.createCell(6).setCellValue("存储ID");
         head.createCell(7).setCellValue("状态");
         head.createCell(8).setCellValue("创建时间");
 
@@ -144,10 +156,10 @@ public class BiomedSampleController {
             row.createCell(0).setCellValue(s.getSampleNo() == null ? "" : s.getSampleNo());
             row.createCell(1).setCellValue(s.getSampleName() == null ? "" : s.getSampleName());
             row.createCell(2).setCellValue(s.getSource() == null ? "" : s.getSource());
-            row.createCell(3).setCellValue(biomedSampleService.getSampleTypeName(s.getSampleTypeId()));
-            row.createCell(4).setCellValue(s.getQueue() == null ? "" : s.getQueue());
-            row.createCell(5).setCellValue(s.getStorageId() == null ? "" : String.valueOf(s.getStorageId()));
-            row.createCell(6).setCellValue(s.getCollectTime() == null ? "" : s.getCollectTime().format(dtf));
+            row.createCell(3).setCellValue(s.getQueue() == null ? "" : s.getQueue());
+            row.createCell(4).setCellValue(s.getCollectTime() == null ? "" : s.getCollectTime().format(dtf));
+            row.createCell(5).setCellValue(biomedSampleService.getSampleTypeName(s.getSampleTypeId()));
+            row.createCell(6).setCellValue(s.getStorageId() == null ? "" : String.valueOf(s.getStorageId()));
             row.createCell(7).setCellValue(formatStatus(s.getStatus()));
             row.createCell(8).setCellValue(s.getCreateTime() == null ? "" : s.getCreateTime().format(dtf));
         }
@@ -162,18 +174,6 @@ public class BiomedSampleController {
             out.flush();
         } finally {
             workbook.close();
-        }
-    }
-
-    private void writeLog(Long sampleId, Long userId, String type, String content) {
-        try {
-            BiomedOperLog log = new BiomedOperLog();
-            log.setSampleId(sampleId);
-            log.setOperBy(userId);
-            log.setOperType(type);
-            log.setContent(content);
-            biomedOperLogService.add(log);
-        } catch (Exception ignored) {
         }
     }
 

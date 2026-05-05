@@ -16,13 +16,25 @@ public class BiomedOperLogService {
     @Resource
     private BiomedOperLogMapper biomedOperLogMapper;
 
+    /**
+     * 日志只允许系统业务代码自动调用，不在前端提供手动新增入口。
+     */
     public void add(BiomedOperLog biomedOperLog) {
         biomedOperLog.setOperTime(LocalDateTime.now());
         biomedOperLogMapper.insert(biomedOperLog);
     }
 
-    public void deleteById(Long id) {
-        biomedOperLogMapper.deleteById(id);
+    public void record(Long sampleId, Long userId, String type, String content) {
+        try {
+            BiomedOperLog log = new BiomedOperLog();
+            log.setSampleId(sampleId);
+            log.setOperBy(userId);
+            log.setOperType(type);
+            log.setContent(content);
+            add(log);
+        } catch (Exception ignored) {
+            // 日志失败不能影响主业务，例如样本新增、修改、删除。
+        }
     }
 
     public BiomedOperLog selectById(Long id) {

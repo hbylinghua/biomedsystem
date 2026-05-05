@@ -1,6 +1,8 @@
 package com.example.mapper;
 
 import com.example.entity.BiomedStorage;
+import org.apache.ibatis.annotations.Param;
+
 import java.util.List;
 
 public interface BiomedStorageMapper {
@@ -8,5 +10,6 @@ public interface BiomedStorageMapper {
     int deleteById(Long id);
     int updateById(BiomedStorage biomedStorage);
     BiomedStorage selectById(Long id);
+    BiomedStorage selectByPosition(@Param("position") String position);
     List<BiomedStorage> selectAll(BiomedStorage biomedStorage);
 }

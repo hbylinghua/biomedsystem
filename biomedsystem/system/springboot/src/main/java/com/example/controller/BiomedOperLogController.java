@@ -9,24 +9,16 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * 操作日志控制器。
+ * 注意：日志应由样本新增、修改、删除、导入等业务自动生成，不提供前端手动新增/删除接口。
+ */
 @RestController
 @RequestMapping("/biomedOperLog")
 public class BiomedOperLogController {
 
     @Resource
     private BiomedOperLogService biomedOperLogService;
-
-    @PostMapping("/add")
-    public Result add(@RequestBody BiomedOperLog biomedOperLog) {
-        biomedOperLogService.add(biomedOperLog);
-        return Result.success("操作日志新增成功");
-    }
-
-    @DeleteMapping("/delete/{id}")
-    public Result deleteById(@PathVariable Long id) {
-        biomedOperLogService.deleteById(id);
-        return Result.success("操作日志删除成功");
-    }
 
     @GetMapping("/selectById/{id}")
     public Result selectById(@PathVariable Long id) {

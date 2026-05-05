@@ -24,6 +24,13 @@
         ORDER BY id DESC
     </select>
 
+    <select id="selectByPosition" resultMap="BiomedStorageResultMap">
+        SELECT id, position, temp, expire_time, status, create_time
+        FROM biomed_storage
+        WHERE position = #{position}
+            LIMIT 1
+    </select>
+
     <insert id="insert" parameterType="com.example.entity.BiomedStorage" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO biomed_storage (position, temp, expire_time, status, create_time)
         VALUES (#{position}, #{temp}, #{expireTime}, #{status}, NOW())

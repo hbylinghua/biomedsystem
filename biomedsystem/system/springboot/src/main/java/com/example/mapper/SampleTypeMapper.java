@@ -1,7 +1,7 @@
 package com.example.mapper;
 
 import com.example.entity.SampleType;
-import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -10,8 +10,6 @@ public interface SampleTypeMapper {
     int deleteById(Long id);
     int updateById(SampleType sampleType);
     SampleType selectById(Long id);
+    SampleType selectByTypeName(@Param("typeName") String typeName);
     List<SampleType> selectAll(SampleType sampleType);
-    @Select("SELECT id FROM sample_type WHERE type_name = #{typeName}")
-    SampleType selectByName(String typeName);
-
 }

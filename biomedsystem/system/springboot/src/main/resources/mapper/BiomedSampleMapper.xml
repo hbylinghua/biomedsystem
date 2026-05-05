@@ -33,7 +33,7 @@
         ORDER BY id DESC
     </select>
 
-    <insert id="insert">
+    <insert id="insert" parameterType="com.example.entity.BiomedSample" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO biomed_sample (
             sample_no, sample_type_id, queue, collect_time, source, storage_id,
             create_by, create_time, update_time, sample_name, status

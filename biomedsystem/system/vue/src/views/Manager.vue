@@ -59,6 +59,11 @@
             <span>样本数据分析</span>
           </el-menu-item>
 
+          <el-menu-item index="/sampleStorage" v-if="isResearcher">
+            <el-icon><SoldOut /></el-icon>
+            <span>样本存储管理</span>
+          </el-menu-item>
+
           <el-menu-item index="/biomedOperLog" v-if="isAdmin">
             <el-icon><Tickets /></el-icon>
             <span>样本日志管理</span>
@@ -150,7 +155,7 @@ const data = reactive({
   }
 })
 
-const isAdmin = computed(() => data.user.role === 'admin')
+const isAdmin = computed(() => data.user.role === 'admin' || data.user.role === 'super_admin')
 const isResearcher = computed(() => data.user.role === 'researcher')
 
 const loadUser = () => {
